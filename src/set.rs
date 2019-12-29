@@ -14,6 +14,14 @@ pub struct MultiSet<T: SetElement> {
 }
 
 impl<T: SetElement> MultiSet<T> {
+    pub fn from_vec(input: Vec<T>) -> Self {
+        Self::from_iter(input.into_iter())
+    }
+
+    pub fn from_tuple_vec(input: Vec<(T, u32)>) -> Self {
+        Self::from_iter(input.into_iter())
+    }
+
     pub fn is_intersected_with(&self, other: &Self) -> bool {
         let (a, b) = if self.len() < other.len() {
             (self, other)
@@ -96,34 +104,34 @@ mod tests {
 
     #[test]
     fn test_is_intersected_with() {
-        let s1 = MultiSet::from_iter([1, 2, 3].iter().cloned());
-        let s2 = MultiSet::from_iter([2, 2, 5].iter().cloned());
-        let s3 = MultiSet::from_iter([5, 6].iter().cloned());
+        let s1 = MultiSet::from_vec(vec![1, 2, 3]);
+        let s2 = MultiSet::from_vec(vec![2, 2, 5]);
+        let s3 = MultiSet::from_vec(vec![5, 6]);
         assert!(s1.is_intersected_with(&s2));
         assert!(!s1.is_intersected_with(&s3));
     }
 
     #[test]
     fn test_set_sum() {
-        let s1 = MultiSet::from_iter([1, 1, 2].iter().cloned());
-        let s2 = MultiSet::from_iter([2, 2, 3].iter().cloned());
-        let s3 = MultiSet::from_iter([(1, 2), (2, 3), (3, 1)].iter().cloned());
+        let s1 = MultiSet::from_vec(vec![1, 1, 2]);
+        let s2 = MultiSet::from_vec(vec![2, 2, 3]);
+        let s3 = MultiSet::from_tuple_vec(vec![(1, 2), (2, 3), (3, 1)]);
         assert_eq!(s1 + s2, s3);
     }
 
     #[test]
     fn test_set_union() {
-        let s1 = MultiSet::from_iter([1, 1, 2].iter().cloned());
-        let s2 = MultiSet::from_iter([2, 2, 3].iter().cloned());
-        let s3 = MultiSet::from_iter([(1, 1), (2, 1), (3, 1)].iter().cloned());
+        let s1 = MultiSet::from_vec(vec![1, 1, 2]);
+        let s2 = MultiSet::from_vec(vec![2, 2, 3]);
+        let s3 = MultiSet::from_tuple_vec(vec![(1, 1), (2, 1), (3, 1)]);
         assert_eq!(s1 | s2, s3);
     }
 
     #[test]
     fn test_set_intersection() {
-        let s1 = MultiSet::from_iter([1, 1, 2].iter().cloned());
-        let s2 = MultiSet::from_iter([2, 2, 3].iter().cloned());
-        let s3 = MultiSet::from_iter([(2, 1)].iter().cloned());
+        let s1 = MultiSet::from_vec(vec![1, 1, 2]);
+        let s2 = MultiSet::from_vec(vec![2, 2, 3]);
+        let s3 = MultiSet::from_tuple_vec(vec![(2, 1)]);
         assert_eq!(s1 & s2, s3);
     }
 }
