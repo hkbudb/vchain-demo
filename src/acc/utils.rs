@@ -1,6 +1,7 @@
 use crate::acc::field::Fr;
 use crate::digest::Digest;
 use algebra::{BigInteger, Field, FpParameters, PrimeField, ProjectiveCurve};
+use ff_fft::{DenseOrSparsePolynomial, DensePolynomial};
 use itertools::unfold;
 
 pub fn digest_to_fr(input: &Digest) -> Fr {
@@ -18,6 +19,31 @@ pub fn digest_to_fr(input: &Digest) -> Fr {
     // drop the last two bits to ensure it is less than the modular
     *repr.0.last_mut().unwrap() &= 0x3fff_ffff_ffff_ffff;
     Fr::from_repr(repr)
+}
+
+/// Return (g, x, y) s.t. a*x + b*y = g = gcd(a, b)
+pub fn xgcd<F: PrimeField>(
+    mut a: DensePolynomial<F>,
+    mut b: DensePolynomial<F>,
+) -> Option<(DensePolynomial<F>, DensePolynomial<F>, DensePolynomial<F>)> {
+    let mut x0 = DensePolynomial::<F>::zero();
+    let mut x1 = DensePolynomial::<F>::from_coefficients_vec(vec![F::one()]);
+    let mut y0 = DensePolynomial::<F>::from_coefficients_vec(vec![F::one()]);
+    let mut y1 = DensePolynomial::<F>::zero();
+    while !a.is_zero() {
+        let a_poly: DenseOrSparsePolynomial<F> = a.clone().into();
+        let b_poly: DenseOrSparsePolynomial<F> = b.clone().into();
+        let (q, r) = b_poly.divide_with_q_and_r(&a_poly)?;
+        b = a;
+        a = r.into();
+        let y1old = y1.clone();
+        y1 = &y0 - &(&q * &y1);
+        y0 = y1old;
+        let x1old = x1.clone();
+        x1 = &x0 - &(&q * &x1);
+        x0 = x1old;
+    }
+    Some((b, x0, y0))
 }
 
 // Ref: https://github.com/blynn/pbc/blob/fbf4589036ce4f662e2d06905862c9e816cf9d08/arith/field.c#L251-L330
@@ -159,6 +185,19 @@ mod tests {
         .unwrap();
         let d = Digest(*b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff");
         assert_eq!(digest_to_fr(&d), expect);
+    }
+
+    #[test]
+    fn test_xgcd() {
+        let poly1 = DensePolynomial::from_coefficients_vec(vec![Fr::from(1u32), Fr::from(1u32)]);
+        let poly2 = DensePolynomial::from_coefficients_vec(vec![Fr::from(2u32), Fr::from(1u32)]);
+        let (g, x, y) = xgcd(poly1.clone(), poly2.clone()).unwrap();
+        assert_eq!(g, DensePolynomial::from_coefficients_vec(vec![Fr::one()]));
+        let mut gcd = &(&poly1 * &x) + &(&poly2 * &y);
+        while gcd.coeffs.last().map_or(false, |c| c.is_zero()) {
+            gcd.coeffs.pop();
+        }
+        assert_eq!(gcd, g);
     }
 
     #[test]
