@@ -1,17 +1,23 @@
 pub use algebra::curves::bls12_381 as curve;
 pub use algebra::fields::bls12_381 as field;
+pub use curve::Bls12_381 as Curve;
 
 pub mod digest_set;
 pub mod utils;
 
 use crate::set::{MultiSet, SetElement};
-use algebra::{msm::VariableBaseMSM, AffineCurve, Field, PrimeField, ProjectiveCurve};
+use algebra::{
+    msm::VariableBaseMSM, AffineCurve, Field, PairingCurve, PairingEngine, PrimeField,
+    ProjectiveCurve,
+};
+use anyhow::{self, ensure, Context};
 use curve::{G1Affine, G1Projective, G2Affine, G2Projective};
 use digest_set::DigestSet;
-use field::Fr;
+use ff_fft::DensePolynomial;
+use field::{Fq12, Fr};
 use rayon::prelude::*;
 use std::str::FromStr;
-use utils::{FixedBaseCurvePow, FixedBaseScalarPow};
+use utils::{xgcd, FixedBaseCurvePow, FixedBaseScalarPow};
 
 const GS_VEC_LEN: usize = 500;
 
@@ -39,6 +45,10 @@ lazy_static! {
             .collect_into_vec(&mut res);
         res
     };
+    static ref E_G_G: Fq12 = Curve::pairing(
+        G1Affine::prime_subgroup_generator(),
+        G2Affine::prime_subgroup_generator()
+    );
 }
 
 fn get_g1s(coeff: Fr) -> G1Projective {
@@ -76,12 +86,61 @@ pub trait Accumulator {
     fn cal_acc_g1_d(set: &DigestSet) -> G1Affine;
     fn cal_acc_g2_sk_d(set: &DigestSet) -> G2Affine;
     fn cal_acc_g2_d(set: &DigestSet) -> G2Affine;
-    fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> Self::Proof;
+    fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> anyhow::Result<Self::Proof>;
 }
 
 pub struct Acc1;
 
-pub struct Acc1Proof {}
+impl Acc1 {
+    fn poly_to_g1(poly: DensePolynomial<Fr>) -> G1Affine {
+        let mut bases: Vec<G1Affine> = Vec::with_capacity(poly.degree() + 1);
+        let mut scalars: Vec<<Fr as PrimeField>::BigInt> = Vec::with_capacity(poly.degree() + 1);
+        for (i, coeff) in poly.coeffs.iter().enumerate() {
+            if coeff.is_zero() {
+                continue;
+            }
+            let gs = G1_S_VEC
+                .get(i)
+                .map(|v| *v)
+                .unwrap_or(get_g1s(Fr::from(i as u64)).into_affine());
+            bases.push(gs);
+            scalars.push(coeff.into_repr());
+        }
+        VariableBaseMSM::multi_scalar_mul(&bases[..], &scalars[..]).into_affine()
+    }
+
+    fn poly_to_g2(poly: DensePolynomial<Fr>) -> G2Affine {
+        let mut bases: Vec<G2Affine> = Vec::with_capacity(poly.degree() + 1);
+        let mut scalars: Vec<<Fr as PrimeField>::BigInt> = Vec::with_capacity(poly.degree() + 1);
+        for (i, coeff) in poly.coeffs.iter().enumerate() {
+            if coeff.is_zero() {
+                continue;
+            }
+            let gs = G2_S_VEC
+                .get(i)
+                .map(|v| *v)
+                .unwrap_or(get_g2s(Fr::from(i as u64)).into_affine());
+            bases.push(gs);
+            scalars.push(coeff.into_repr());
+        }
+        VariableBaseMSM::multi_scalar_mul(&bases[..], &scalars[..]).into_affine()
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Acc1Proof {
+    f1: G2Affine,
+    f2: G2Affine,
+}
+
+impl Acc1Proof {
+    pub fn verify(&self, acc1: &G1Affine, acc2: &G1Affine) -> bool {
+        Curve::product_of_pairings(&[
+            (&acc1.prepare(), &self.f1.prepare()),
+            (&acc2.prepare(), &self.f2.prepare()),
+        ]) == *E_G_G
+    }
+}
 
 impl Accumulator for Acc1 {
     const TYPE: Type = Type::ACC1;
@@ -98,20 +157,7 @@ impl Accumulator for Acc1 {
     }
     fn cal_acc_g1_d(set: &DigestSet) -> G1Affine {
         let poly = set.expand_to_poly();
-        let mut bases: Vec<G1Affine> = Vec::with_capacity(poly.degree() + 1);
-        let mut scalars: Vec<<Fr as PrimeField>::BigInt> = Vec::with_capacity(poly.degree() + 1);
-        for (i, coeff) in poly.coeffs.iter().enumerate() {
-            if coeff.is_zero() {
-                continue;
-            }
-            let gs = G1_S_VEC
-                .get(i)
-                .map(|v| *v)
-                .unwrap_or(get_g1s(Fr::from(i as u64)).into_affine());
-            bases.push(gs);
-            scalars.push(coeff.into_repr());
-        }
-        VariableBaseMSM::multi_scalar_mul(&bases[..], &scalars[..]).into_affine()
+        Self::poly_to_g1(poly)
     }
     fn cal_acc_g2_sk_d(set: &DigestSet) -> G2Affine {
         let mut x = Fr::one();
@@ -124,26 +170,21 @@ impl Accumulator for Acc1 {
     }
     fn cal_acc_g2_d(set: &DigestSet) -> G2Affine {
         let poly = set.expand_to_poly();
-        let mut bases: Vec<G2Affine> = Vec::with_capacity(poly.degree() + 1);
-        let mut scalars: Vec<<Fr as PrimeField>::BigInt> = Vec::with_capacity(poly.degree() + 1);
-        for (i, coeff) in poly.coeffs.iter().enumerate() {
-            if coeff.is_zero() {
-                continue;
-            }
-            let gs = G2_S_VEC
-                .get(i)
-                .map(|v| *v)
-                .unwrap_or(get_g2s(Fr::from(i as u64)).into_affine());
-            bases.push(gs);
-            scalars.push(coeff.into_repr());
-        }
-        VariableBaseMSM::multi_scalar_mul(&bases[..], &scalars[..]).into_affine()
+        Self::poly_to_g2(poly)
     }
-    fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> Self::Proof {
-        todo!();
+    fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> anyhow::Result<Self::Proof> {
+        let poly1 = set1.expand_to_poly();
+        let poly2 = set2.expand_to_poly();
+        let (g, x, y) = xgcd(poly1, poly2).context("failed to compute xgcd")?;
+        ensure!(g.degree() == 0, "cannot generate proof");
+        Ok(Acc1Proof {
+            f1: Self::poly_to_g2(&x / &g),
+            f2: Self::poly_to_g2(&y / &g),
+        })
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Acc2;
 
 pub struct Acc2Proof {}
@@ -188,7 +229,7 @@ impl Accumulator for Acc2 {
             .reduce(|| G2Projective::zero(), |a, b| a + &b)
             .into_affine()
     }
-    fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> Self::Proof {
+    fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> anyhow::Result<Self::Proof> {
         todo!();
     }
 }
@@ -204,5 +245,17 @@ mod tests {
         assert_eq!(Acc1::cal_acc_g2(&set), Acc1::cal_acc_g2_sk(&set));
         assert_eq!(Acc2::cal_acc_g1(&set), Acc2::cal_acc_g1_sk(&set));
         assert_eq!(Acc2::cal_acc_g2(&set), Acc2::cal_acc_g2_sk(&set));
+    }
+
+    #[test]
+    fn test_acc1_proof() {
+        let set1 = DigestSet::new(&MultiSet::from_vec(vec![1, 2, 3]));
+        let set2 = DigestSet::new(&MultiSet::from_vec(vec![4, 5, 6]));
+        let set3 = DigestSet::new(&MultiSet::from_vec(vec![1, 1]));
+        let proof = Acc1::gen_proof(&set1, &set2).unwrap();
+        let acc1 = Acc1::cal_acc_g1_sk_d(&set1);
+        let acc2 = Acc1::cal_acc_g1_sk_d(&set2);
+        assert!(proof.verify(&acc1, &acc2));
+        assert!(Acc1::gen_proof(&set1, &set3).is_err());
     }
 }

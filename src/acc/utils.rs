@@ -192,7 +192,7 @@ mod tests {
         let poly1 = DensePolynomial::from_coefficients_vec(vec![Fr::from(1u32), Fr::from(1u32)]);
         let poly2 = DensePolynomial::from_coefficients_vec(vec![Fr::from(2u32), Fr::from(1u32)]);
         let (g, x, y) = xgcd(poly1.clone(), poly2.clone()).unwrap();
-        assert_eq!(g, DensePolynomial::from_coefficients_vec(vec![Fr::one()]));
+        assert_eq!(g.degree(), 0);
         let mut gcd = &(&poly1 * &x) + &(&poly2 * &y);
         while gcd.coeffs.last().map_or(false, |c| c.is_zero()) {
             gcd.coeffs.pop();
