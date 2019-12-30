@@ -3,6 +3,7 @@ pub use algebra::fields::bls12_381 as field;
 pub use curve::Bls12_381 as Curve;
 
 pub mod digest_set;
+pub mod serde_impl;
 pub mod utils;
 
 use crate::set::{MultiSet, SetElement};
@@ -16,6 +17,7 @@ use digest_set::DigestSet;
 use ff_fft::DensePolynomial;
 use field::{Fq12, Fr};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use utils::{xgcd, FixedBaseCurvePow, FixedBaseScalarPow};
 
@@ -127,9 +129,11 @@ impl Acc1 {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Acc1Proof {
+    #[serde(with = "serde_impl")]
     f1: G2Affine,
+    #[serde(with = "serde_impl")]
     f2: G2Affine,
 }
 
@@ -186,8 +190,9 @@ impl Accumulator for Acc1 {
 
 pub struct Acc2;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Acc2Proof {
+    #[serde(with = "serde_impl")]
     f: G1Affine,
 }
 
@@ -266,6 +271,11 @@ impl Accumulator for Acc2 {
             .into_affine();
         Ok(Acc2Proof { f })
     }
+}
+
+pub enum Proof {
+    ACC1(Acc1Proof),
+    ACC2(Acc2Proof),
 }
 
 #[cfg(test)]
