@@ -10,7 +10,7 @@ use algebra::{
     msm::VariableBaseMSM, AffineCurve, Field, PairingCurve, PairingEngine, PrimeField,
     ProjectiveCurve,
 };
-use anyhow::{self, ensure, Context};
+use anyhow::{self, bail, ensure, Context};
 use curve::{G1Affine, G1Projective, G2Affine, G2Projective};
 use digest_set::DigestSet;
 use ff_fft::DensePolynomial;
@@ -184,10 +184,20 @@ impl Accumulator for Acc1 {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Acc2;
 
-pub struct Acc2Proof {}
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Acc2Proof {
+    f: G1Affine,
+}
+
+impl Acc2Proof {
+    pub fn verify(&self, acc1: &G1Affine, acc2: &G2Affine) -> bool {
+        let a = Curve::pairing(*acc1, *acc2);
+        let b = Curve::pairing(self.f, G2Affine::prime_subgroup_generator());
+        a == b
+    }
+}
 
 impl Accumulator for Acc2 {
     const TYPE: Type = Type::ACC2;
@@ -230,7 +240,31 @@ impl Accumulator for Acc2 {
             .into_affine()
     }
     fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> anyhow::Result<Self::Proof> {
-        todo!();
+        let produce_size = set1.len() * set2.len();
+        let mut product: Vec<(Fr, u32)> = Vec::with_capacity(produce_size);
+        (0..produce_size)
+            .into_par_iter()
+            .map(|i| {
+                let set1idx = i / set2.len();
+                let set2idx = i % set2.len();
+                let (s1, q1) = set1[set1idx];
+                let (s2, q2) = set2[set2idx];
+                (*PUB_Q + &s1 - &s2, q1 * q2)
+            })
+            .collect_into_vec(&mut product);
+        if product.par_iter().any(|(x, _)| *x == *PUB_Q) {
+            bail!("cannot generate proof");
+        }
+        let f = product
+            .par_iter()
+            .map(|(a, b)| {
+                let mut sa = get_g1s(*a);
+                sa.mul_assign(*b as u64);
+                sa
+            })
+            .reduce(|| G1Projective::zero(), |a, b| a + &b)
+            .into_affine();
+        Ok(Acc2Proof { f })
     }
 }
 
@@ -257,5 +291,17 @@ mod tests {
         let acc2 = Acc1::cal_acc_g1_sk_d(&set2);
         assert!(proof.verify(&acc1, &acc2));
         assert!(Acc1::gen_proof(&set1, &set3).is_err());
+    }
+
+    #[test]
+    fn test_acc2_proof() {
+        let set1 = DigestSet::new(&MultiSet::from_vec(vec![1, 2, 3]));
+        let set2 = DigestSet::new(&MultiSet::from_vec(vec![4, 5, 6]));
+        let set3 = DigestSet::new(&MultiSet::from_vec(vec![1, 1]));
+        let proof = Acc2::gen_proof(&set1, &set2).unwrap();
+        let acc1 = Acc2::cal_acc_g1_sk_d(&set1);
+        let acc2 = Acc2::cal_acc_g2_sk_d(&set2);
+        assert!(proof.verify(&acc1, &acc2));
+        assert!(Acc2::gen_proof(&set1, &set3).is_err());
     }
 }
