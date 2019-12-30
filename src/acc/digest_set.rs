@@ -4,6 +4,7 @@ use crate::set::{MultiSet, SetElement};
 use algebra::Field;
 use ff_fft::DensePolynomial;
 use rayon::{self, prelude::*};
+use std::ops::Deref;
 
 #[derive(Debug, Clone, Default)]
 pub struct DigestSet {
@@ -42,6 +43,14 @@ impl DigestSet {
             &left * &right
         }
         expand(&inputs)
+    }
+}
+
+impl Deref for DigestSet {
+    type Target = Vec<(Fr, u32)>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
