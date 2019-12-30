@@ -22,11 +22,11 @@ pub fn digest_to_fr(input: &Digest) -> Fr {
 
 // Ref: https://github.com/blynn/pbc/blob/fbf4589036ce4f662e2d06905862c9e816cf9d08/arith/field.c#L251-L330
 
-pub struct CurvePow<G: ProjectiveCurve> {
+pub struct FixedBaseCurvePow<G: ProjectiveCurve> {
     table: Vec<Vec<G>>,
 }
 
-impl<G: ProjectiveCurve> CurvePow<G> {
+impl<G: ProjectiveCurve> FixedBaseCurvePow<G> {
     const K: usize = 5;
 
     pub fn build(base: &G) -> Self {
@@ -34,21 +34,29 @@ impl<G: ProjectiveCurve> CurvePow<G> {
             <<G as ProjectiveCurve>::ScalarField as PrimeField>::Params::MODULUS_BITS as usize;
         let num_lookups = bits / Self::K + 1;
         let lookup_size = (1 << Self::K) - 1;
+        let last_lookup_size = (1 << (bits - (num_lookups - 1) * Self::K)) - 1;
 
         let mut table: Vec<Vec<G>> = Vec::with_capacity(num_lookups);
 
         let mut multiplier = *base;
-        for _ in 0..num_lookups {
+        for i in 0..num_lookups {
+            let table_size = if i == num_lookups - 1 {
+                last_lookup_size
+            } else {
+                lookup_size
+            };
             let sub_table: Vec<G> = unfold(multiplier, |last| {
                 let ret = *last;
                 last.add_assign(&multiplier);
                 Some(ret)
             })
-            .take(lookup_size)
+            .take(table_size)
             .collect();
-            let last = *sub_table.last().unwrap();
             table.push(sub_table);
-            multiplier.add_assign(&last);
+            if i != num_lookups - 1 {
+                let last = *table.last().unwrap().last().unwrap();
+                multiplier.add_assign(&last);
+            }
         }
         Self { table }
     }
@@ -72,32 +80,40 @@ impl<G: ProjectiveCurve> CurvePow<G> {
     }
 }
 
-pub struct FieldPow<F: PrimeField> {
+pub struct FixedBaseScalarPow<F: PrimeField> {
     table: Vec<Vec<F>>,
 }
 
-impl<F: PrimeField> FieldPow<F> {
+impl<F: PrimeField> FixedBaseScalarPow<F> {
     const K: usize = 8;
 
     pub fn build(base: &F) -> Self {
         let bits = <F as PrimeField>::Params::MODULUS_BITS as usize;
         let num_lookups = bits / Self::K + 1;
         let lookup_size = (1 << Self::K) - 1;
+        let last_lookup_size = (1 << (bits - (num_lookups - 1) * Self::K)) - 1;
 
         let mut table: Vec<Vec<F>> = Vec::with_capacity(num_lookups);
 
         let mut multiplier = *base;
-        for _ in 0..num_lookups {
+        for i in 0..num_lookups {
+            let table_size = if i == num_lookups - 1 {
+                last_lookup_size
+            } else {
+                lookup_size
+            };
             let sub_table: Vec<F> = unfold(multiplier, |last| {
                 let ret = *last;
                 last.mul_assign(&multiplier);
                 Some(ret)
             })
-            .take(lookup_size)
+            .take(table_size)
             .collect();
-            let last = *sub_table.last().unwrap();
             table.push(sub_table);
-            multiplier.mul_assign(&last);
+            if i != num_lookups - 1 {
+                let last = *table.last().unwrap().last().unwrap();
+                multiplier.mul_assign(&last);
+            }
         }
         Self { table }
     }
@@ -147,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_pow_g1() {
-        let g1p = CurvePow::build(&G1::prime_subgroup_generator());
+        let g1p = FixedBaseCurvePow::build(&G1::prime_subgroup_generator());
         let mut rng = rand::thread_rng();
         let num: Fr = rng.gen();
         let mut expect = G1::prime_subgroup_generator();
@@ -157,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_pow_g2() {
-        let g2p = CurvePow::build(&G2::prime_subgroup_generator());
+        let g2p = FixedBaseCurvePow::build(&G2::prime_subgroup_generator());
         let mut rng = rand::thread_rng();
         let num: Fr = rng.gen();
         let mut expect = G2::prime_subgroup_generator();
@@ -170,7 +186,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let base: Fr = rng.gen();
         let num: Fr = rng.gen();
-        let frp = FieldPow::build(&base);
+        let frp = FixedBaseScalarPow::build(&base);
         let expect = base.pow(num.into_repr());
         assert_eq!(frp.apply(&num), expect);
     }
