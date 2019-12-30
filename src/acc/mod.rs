@@ -101,8 +101,8 @@ impl Acc1 {
             }
             let gs = G1_S_VEC
                 .get(i)
-                .map(|v| *v)
-                .unwrap_or(get_g1s(Fr::from(i as u64)).into_affine());
+                .copied()
+                .unwrap_or_else(|| get_g1s(Fr::from(i as u64)).into_affine());
             bases.push(gs);
             scalars.push(coeff.into_repr());
         }
@@ -118,8 +118,8 @@ impl Acc1 {
             }
             let gs = G2_S_VEC
                 .get(i)
-                .map(|v| *v)
-                .unwrap_or(get_g2s(Fr::from(i as u64)).into_affine());
+                .copied()
+                .unwrap_or_else(|| get_g2s(Fr::from(i as u64)).into_affine());
             bases.push(gs);
             scalars.push(coeff.into_repr());
         }
@@ -218,13 +218,13 @@ impl Accumulator for Acc2 {
                 sa.mul_assign(*b as u64);
                 sa
             })
-            .reduce(|| G1Projective::zero(), |a, b| a + &b)
+            .reduce(G1Projective::zero, |a, b| a + &b)
             .into_affine()
     }
     fn cal_acc_g2_sk_d(set: &DigestSet) -> G2Affine {
         let mut x = Fr::zero();
         for (a, b) in set.iter() {
-            let s = PRI_S_POWER.apply(&(*PUB_Q - &a));
+            let s = PRI_S_POWER.apply(&(*PUB_Q - a));
             x += &(s * &Fr::from(*b));
         }
         G2_POWER.apply(&x).into_affine()
@@ -236,7 +236,7 @@ impl Accumulator for Acc2 {
                 sa.mul_assign(*b as u64);
                 sa
             })
-            .reduce(|| G2Projective::zero(), |a, b| a + &b)
+            .reduce(G2Projective::zero, |a, b| a + &b)
             .into_affine()
     }
     fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> anyhow::Result<Self::Proof> {
@@ -262,7 +262,7 @@ impl Accumulator for Acc2 {
                 sa.mul_assign(*b as u64);
                 sa
             })
-            .reduce(|| G1Projective::zero(), |a, b| a + &b)
+            .reduce(G1Projective::zero, |a, b| a + &b)
             .into_affine();
         Ok(Acc2Proof { f })
     }

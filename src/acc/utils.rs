@@ -35,7 +35,7 @@ pub fn xgcd<F: PrimeField>(
         let b_poly: DenseOrSparsePolynomial<F> = b.clone().into();
         let (q, r) = b_poly.divide_with_q_and_r(&a_poly)?;
         b = a;
-        a = r.into();
+        a = r;
         let y1old = y1.clone();
         y1 = &y0 - &(&q * &y1);
         y0 = y1old;
