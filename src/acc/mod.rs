@@ -273,9 +273,10 @@ impl Accumulator for Acc2 {
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Proof {
-    ACC1(Acc1Proof),
-    ACC2(Acc2Proof),
+    ACC1(Box<Acc1Proof>),
+    ACC2(Box<Acc2Proof>),
 }
 
 #[cfg(test)]
