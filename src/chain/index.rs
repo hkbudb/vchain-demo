@@ -152,28 +152,26 @@ impl SkipListNode {
     }
 }
 
-mod blockheader {
-    use super::*;
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub enum IntraData {
+    // List of object ids
+    Flat(Vec<u64>),
+    // IntraIndexNode root id
+    Index(u64),
+}
 
-    #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-    pub enum DataHeader {
-        // List of object ids
-        Flat(Vec<u64>),
-        // IntraIndexNode root id
-        IntraIndex(u64),
-    }
-
-    #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-    pub struct SkipListHeader {
-        pub skip_list_ids: Vec<u64>,
-        pub digest: Digest,
-    }
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct BlockData {
+    pub block_id: u64,
+    pub data: IntraData,
+    pub set_data: MultiSet<SetElementType>,
+    #[serde(with = "crate::acc::serde_impl")]
+    pub acc_value: G1Affine,
+    pub skip_list_ids: Option<Vec<u64>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct BlockHeader {
-    pub block_id: u64,
-    pub data: blockheader::DataHeader,
-    pub data_digest: Digest,
-    pub skip_list: Option<blockheader::SkipListHeader>,
+    pub data_root: Digest,
+    pub skip_list_root: Option<Digest>,
 }

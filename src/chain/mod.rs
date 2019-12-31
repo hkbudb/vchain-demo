@@ -24,6 +24,7 @@ pub struct Parameter {
 pub trait ReadInterface {
     fn get_parameter(&self) -> Result<Parameter>;
     fn read_block_header(&self, id: u64) -> Result<BlockHeader>;
+    fn read_block_data(&self, id: u64) -> Result<BlockData>;
     fn read_intra_index_node(&self, id: u64) -> Result<IntraIndexNode>;
     fn read_skip_list_node(&self, id: u64) -> Result<SkipListNode>;
     fn read_object(&self, id: u64) -> Result<Object>;
@@ -31,7 +32,8 @@ pub trait ReadInterface {
 
 pub trait WriteInterface {
     fn set_parameter(&mut self, param: Parameter) -> Result<()>;
-    fn write_block_header(&mut self, header: BlockHeader) -> Result<()>;
+    fn write_block_header(&mut self, id: u64, header: BlockHeader) -> Result<()>;
+    fn write_block_data(&mut self, data: BlockData) -> Result<()>;
     fn write_intra_index_node(&mut self, node: IntraIndexNode) -> Result<()>;
     fn write_skip_list_node(&mut self, node: SkipListNode) -> Result<()>;
     fn write_object(&mut self, obj: Object) -> Result<()>;
@@ -41,6 +43,7 @@ pub trait WriteInterface {
 pub struct FakeInMemChain {
     param: Option<Parameter>,
     block_headers: HashMap<u64, BlockHeader>,
+    block_data: HashMap<u64, BlockData>,
     intra_index_nodes: HashMap<u64, IntraIndexNode>,
     skip_list_nodes: HashMap<u64, SkipListNode>,
     objects: HashMap<u64, Object>,
@@ -54,7 +57,13 @@ impl ReadInterface for FakeInMemChain {
         self.block_headers
             .get(&id)
             .cloned()
-            .context("failed to read block")
+            .context("failed to read block header")
+    }
+    fn read_block_data(&self, id: u64) -> Result<BlockData> {
+        self.block_data
+            .get(&id)
+            .cloned()
+            .context("failed to read block data")
     }
     fn read_intra_index_node(&self, id: u64) -> Result<IntraIndexNode> {
         self.intra_index_nodes
@@ -81,9 +90,13 @@ impl WriteInterface for FakeInMemChain {
         self.param = Some(param);
         Ok(())
     }
-    fn write_block_header(&mut self, header: BlockHeader) -> Result<()> {
-        let id = header.block_id;
+    fn write_block_header(&mut self, id: u64, header: BlockHeader) -> Result<()> {
         self.block_headers.insert(id, header);
+        Ok(())
+    }
+    fn write_block_data(&mut self, data: BlockData) -> Result<()> {
+        let id = data.block_id;
+        self.block_data.insert(id, data);
         Ok(())
     }
     fn write_intra_index_node(&mut self, node: IntraIndexNode) -> Result<()> {
