@@ -1,5 +1,5 @@
+use super::Parameter;
 use crate::acc::{self, curve::G1Affine, Accumulator};
-use crate::chain::Parameter;
 use crate::digest::{blake2, Digest, Digestable};
 use crate::set::MultiSet;
 use rayon::prelude::*;

@@ -1,4 +1,4 @@
-use crate::acc::field::Fr;
+use super::field::Fr;
 use crate::digest::Digest;
 use algebra::{BigInteger, FpParameters, PrimeField, ProjectiveCurve};
 use ff_fft::{DenseOrSparsePolynomial, DensePolynomial};

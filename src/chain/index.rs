@@ -1,5 +1,5 @@
+use super::SetElementType;
 use crate::acc::curve::G1Affine;
-use crate::chain::SetElementType;
 use crate::digest::{concat_digest_ref, Digest, Digestable};
 use crate::set::MultiSet;
 use serde::{Deserialize, Serialize};

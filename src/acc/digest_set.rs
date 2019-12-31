@@ -1,5 +1,4 @@
-use crate::acc::field::Fr;
-use crate::acc::utils::digest_to_fr;
+use super::{field::Fr, utils::digest_to_fr};
 use crate::set::{MultiSet, SetElement};
 use algebra::Field;
 use ff_fft::DensePolynomial;
