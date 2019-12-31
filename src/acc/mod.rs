@@ -6,10 +6,11 @@ pub mod digest_set;
 pub mod serde_impl;
 pub mod utils;
 
+use crate::digest::{Digest, Digestable};
 use crate::set::{MultiSet, SetElement};
 use algebra::{
-    msm::VariableBaseMSM, AffineCurve, Field, PairingCurve, PairingEngine, PrimeField,
-    ProjectiveCurve,
+    bytes::ToBytes, msm::VariableBaseMSM, AffineCurve, Field, PairingCurve, PairingEngine,
+    PrimeField, ProjectiveCurve,
 };
 use anyhow::{self, bail, ensure, Context};
 use curve::{G1Affine, G1Projective, G2Affine, G2Projective};
@@ -323,6 +324,15 @@ impl Accumulator for Acc2 {
 pub enum Proof {
     ACC1(Box<Acc1Proof>),
     ACC2(Box<Acc2Proof>),
+}
+
+impl Digestable for G1Affine {
+    fn to_digest(&self) -> Digest {
+        let mut buf = Vec::<u8>::new();
+        self.write(&mut buf)
+            .unwrap_or_else(|_| panic!("failed to serialize {:?}", self));
+        buf.to_digest()
+    }
 }
 
 #[cfg(test)]

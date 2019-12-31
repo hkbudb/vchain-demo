@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+static OBJECT_ID_CNT: AtomicU64 = AtomicU64::new(0);
+
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RawObject {
     pub block_id: u64,
@@ -27,7 +29,6 @@ pub struct Object {
 
 impl Object {
     pub fn create(obj: &RawObject, param: &Parameter) -> Self {
-        static OBJECT_ID_CNT: AtomicU64 = AtomicU64::new(0);
         let id = OBJECT_ID_CNT.fetch_add(1, Ordering::SeqCst);
         let set_data = obj
             .w_data
