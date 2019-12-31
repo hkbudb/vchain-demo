@@ -9,6 +9,9 @@ pub use object::*;
 pub mod index;
 pub use index::*;
 
+pub mod build;
+pub use build::*;
+
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Parameter {
     v_bit_len: Vec<u8>,

@@ -3,6 +3,7 @@ use crate::acc::curve::G1Affine;
 use crate::digest::{concat_digest_ref, Digest, Digestable};
 use crate::set::MultiSet;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static INTRA_INDEX_ID_CNT: AtomicU64 = AtomicU64::new(0);
@@ -49,8 +50,8 @@ pub struct IntraIndexNonLeaf {
     #[serde(with = "crate::acc::serde_impl")]
     pub acc_value: G1Affine,
     pub child_hash_digest: Digest,
-    pub child_hashes: [Digest; 2],
-    pub child_ids: [u64; 2],
+    pub child_hashes: SmallVec<[Digest; 2]>,
+    pub child_ids: SmallVec<[u64; 2]>,
 }
 
 impl IntraIndexNonLeaf {
@@ -58,8 +59,8 @@ impl IntraIndexNonLeaf {
         block_id: u64,
         set_data: &MultiSet<SetElementType>,
         acc_value: &G1Affine,
-        child_hashes: &[Digest; 2],
-        child_ids: &[u64; 2],
+        child_hashes: &SmallVec<[Digest; 2]>,
+        child_ids: &SmallVec<[u64; 2]>,
     ) -> Self {
         let id = INTRA_INDEX_ID_CNT.fetch_add(1, Ordering::SeqCst);
         Self {
@@ -68,8 +69,8 @@ impl IntraIndexNonLeaf {
             set_data: set_data.clone(),
             acc_value: *acc_value,
             child_hash_digest: concat_digest_ref(child_hashes.iter()),
-            child_hashes: *child_hashes,
-            child_ids: *child_ids,
+            child_hashes: child_hashes.clone(),
+            child_ids: child_ids.clone(),
         }
     }
 }
