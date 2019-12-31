@@ -69,6 +69,7 @@ fn get_g2s(coeff: Fr) -> G2Affine {
     G2_POWER.apply(&si).into_affine()
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Type {
     ACC1,
     ACC2,

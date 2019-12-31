@@ -1,4 +1,5 @@
 use crate::acc::{self, curve::G1Affine, Accumulator};
+use crate::chain::Parameter;
 use crate::digest::{blake2, Digest, Digestable};
 use crate::set::MultiSet;
 use rayon::prelude::*;
@@ -25,7 +26,7 @@ pub struct Object {
 }
 
 impl Object {
-    pub fn create(obj: &RawObject, v_bit_len: &[u32], acc_type: acc::Type, use_sk: bool) -> Self {
+    pub fn create(obj: &RawObject, param: &Parameter) -> Self {
         static OBJECT_ID_CNT: AtomicU64 = AtomicU64::new(0);
         let id = OBJECT_ID_CNT.fetch_add(1, Ordering::SeqCst);
         let set_data = obj
@@ -33,8 +34,8 @@ impl Object {
             .iter()
             .map(|w| SetElementType::W(w.clone()))
             .collect::<MultiSet<_>>()
-            + v_data_to_set(&obj.v_data, v_bit_len);
-        let acc_value = match (acc_type, use_sk) {
+            + v_data_to_set(&obj.v_data, &param.v_bit_len);
+        let acc_value = match (param.acc_type, param.use_sk) {
             (acc::Type::ACC1, true) => acc::Acc1::cal_acc_g1_sk(&set_data),
             (acc::Type::ACC1, false) => acc::Acc1::cal_acc_g1(&set_data),
             (acc::Type::ACC2, true) => acc::Acc2::cal_acc_g1_sk(&set_data),
@@ -89,7 +90,7 @@ impl Digestable for SetElementType {
     }
 }
 
-pub fn v_data_to_set(input: &[u32], bit_len: &[u32]) -> MultiSet<SetElementType> {
+pub fn v_data_to_set(input: &[u32], bit_len: &[u8]) -> MultiSet<SetElementType> {
     input
         .iter()
         .enumerate()
