@@ -14,6 +14,33 @@ pub enum IntraIndexNode {
     Leaf(Box<IntraIndexLeaf>),
 }
 
+impl IntraIndexNode {
+    pub fn id(&self) -> u64 {
+        match self {
+            Self::NonLeaf(x) => x.id,
+            Self::Leaf(x) => x.id,
+        }
+    }
+    pub fn block_id(&self) -> u64 {
+        match self {
+            Self::NonLeaf(x) => x.block_id,
+            Self::Leaf(x) => x.block_id,
+        }
+    }
+    pub fn set_data<'a>(&'a self) -> &'a MultiSet<SetElementType> {
+        match self {
+            Self::NonLeaf(x) => &x.set_data,
+            Self::Leaf(x) => &x.set_data,
+        }
+    }
+    pub fn acc_value<'a>(&'a self) -> &'a G1Affine {
+        match self {
+            Self::NonLeaf(x) => &x.acc_value,
+            Self::Leaf(x) => &x.acc_value,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct IntraIndexNonLeaf {
     pub id: u64,
@@ -122,4 +149,30 @@ impl SkipListNode {
             digest,
         }
     }
+}
+
+mod blockheader {
+    use super::*;
+
+    #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+    pub enum DataHeader {
+        // List of object ids
+        Flat(Vec<u64>),
+        // IntraIndexNode root id
+        IntraIndex(u64),
+    }
+
+    #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+    pub struct SkipListHeader {
+        pub skip_list_ids: Vec<u64>,
+        pub digest: Digest,
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct BlockHeader {
+    pub block_id: u64,
+    pub data: blockheader::DataHeader,
+    pub data_digest: Digest,
+    pub skip_list: Option<blockheader::SkipListHeader>,
 }
