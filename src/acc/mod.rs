@@ -114,10 +114,10 @@ impl Acc1 {
         (0..idxes.len())
             .into_par_iter()
             .map(|i| {
-                G1_S_VEC
-                    .get(i)
-                    .copied()
-                    .unwrap_or_else(|| get_g1s(Fr::from(i as u64)))
+                G1_S_VEC.get(i).copied().unwrap_or_else(|| {
+                    trace!("access g1 pub key at {}", i);
+                    get_g1s(Fr::from(i as u64))
+                })
             })
             .collect_into_vec(&mut bases);
         (0..idxes.len())
@@ -142,10 +142,10 @@ impl Acc1 {
         (0..idxes.len())
             .into_par_iter()
             .map(|i| {
-                G2_S_VEC
-                    .get(i)
-                    .copied()
-                    .unwrap_or_else(|| get_g2s(Fr::from(i as u64)))
+                G2_S_VEC.get(i).copied().unwrap_or_else(|| {
+                    trace!("access g2 pub key at {}", i);
+                    get_g2s(Fr::from(i as u64))
+                })
             })
             .collect_into_vec(&mut bases);
         (0..idxes.len())
