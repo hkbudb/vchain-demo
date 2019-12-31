@@ -28,13 +28,13 @@ impl IntraIndexNode {
             Self::Leaf(x) => x.block_id,
         }
     }
-    pub fn set_data<'a>(&'a self) -> &'a MultiSet<SetElementType> {
+    pub fn set_data(&self) -> &MultiSet<SetElementType> {
         match self {
             Self::NonLeaf(x) => &x.set_data,
             Self::Leaf(x) => &x.set_data,
         }
     }
-    pub fn acc_value<'a>(&'a self) -> &'a G1Affine {
+    pub fn acc_value(&self) -> &G1Affine {
         match self {
             Self::NonLeaf(x) => &x.acc_value,
             Self::Leaf(x) => &x.acc_value,
