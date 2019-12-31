@@ -32,19 +32,25 @@ lazy_static! {
         FixedBaseCurvePow::build(&G2Projective::prime_subgroup_generator());
     static ref PRI_S_POWER: FixedBaseScalarPow<Fr> = FixedBaseScalarPow::build(&PRI_S);
     static ref G1_S_VEC: Vec<G1Affine> = {
+        info!("Initialize G1_S_VEC...");
+        let timer = howlong::ProcessCPUTimer::new();
         let mut res: Vec<G1Affine> = Vec::with_capacity(GS_VEC_LEN);
         (0..GS_VEC_LEN)
             .into_par_iter()
             .map(|i| get_g1s(Fr::from(i as u64)).into_affine())
             .collect_into_vec(&mut res);
+        info!("Done in {}.", timer.elapsed());
         res
     };
     static ref G2_S_VEC: Vec<G2Affine> = {
+        info!("Initialize G2_S_VEC...");
+        let timer = howlong::ProcessCPUTimer::new();
         let mut res: Vec<G2Affine> = Vec::with_capacity(GS_VEC_LEN);
         (0..GS_VEC_LEN)
             .into_par_iter()
             .map(|i| get_g2s(Fr::from(i as u64)).into_affine())
             .collect_into_vec(&mut res);
+        info!("Done in {}.", timer.elapsed());
         res
     };
     static ref E_G_G: Fq12 = Curve::pairing(
@@ -283,8 +289,13 @@ pub enum Proof {
 mod tests {
     use super::*;
 
+    fn init_logger() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
     #[test]
     fn test_cal_acc() {
+        init_logger();
         let set = MultiSet::from_vec(vec![1, 1, 2, 3, 4, 4, 5, 6, 6, 7, 8, 9]);
         assert_eq!(Acc1::cal_acc_g1(&set), Acc1::cal_acc_g1_sk(&set));
         assert_eq!(Acc1::cal_acc_g2(&set), Acc1::cal_acc_g2_sk(&set));
@@ -294,6 +305,7 @@ mod tests {
 
     #[test]
     fn test_acc1_proof() {
+        init_logger();
         let set1 = DigestSet::new(&MultiSet::from_vec(vec![1, 2, 3]));
         let set2 = DigestSet::new(&MultiSet::from_vec(vec![4, 5, 6]));
         let set3 = DigestSet::new(&MultiSet::from_vec(vec![1, 1]));
@@ -306,6 +318,7 @@ mod tests {
 
     #[test]
     fn test_acc2_proof() {
+        init_logger();
         let set1 = DigestSet::new(&MultiSet::from_vec(vec![1, 2, 3]));
         let set2 = DigestSet::new(&MultiSet::from_vec(vec![4, 5, 6]));
         let set3 = DigestSet::new(&MultiSet::from_vec(vec![1, 1]));
