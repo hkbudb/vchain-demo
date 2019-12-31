@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use utils::{xgcd, FixedBaseCurvePow, FixedBaseScalarPow};
 
-const GS_VEC_LEN: usize = 500;
+const GS_VEC_LEN: usize = 1000;
 
 lazy_static! {
     static ref PUB_Q: Fr = Fr::from_str("173169506511432145374212744878663118934").unwrap();
@@ -37,7 +37,7 @@ lazy_static! {
         let mut res: Vec<G1Affine> = Vec::with_capacity(GS_VEC_LEN);
         (0..GS_VEC_LEN)
             .into_par_iter()
-            .map(|i| get_g1s(Fr::from(i as u64)).into_affine())
+            .map(|i| get_g1s(Fr::from(i as u64)))
             .collect_into_vec(&mut res);
         info!("Done in {}.", timer.elapsed());
         res
@@ -48,7 +48,7 @@ lazy_static! {
         let mut res: Vec<G2Affine> = Vec::with_capacity(GS_VEC_LEN);
         (0..GS_VEC_LEN)
             .into_par_iter()
-            .map(|i| get_g2s(Fr::from(i as u64)).into_affine())
+            .map(|i| get_g2s(Fr::from(i as u64)))
             .collect_into_vec(&mut res);
         info!("Done in {}.", timer.elapsed());
         res
@@ -59,14 +59,14 @@ lazy_static! {
     );
 }
 
-fn get_g1s(coeff: Fr) -> G1Projective {
+fn get_g1s(coeff: Fr) -> G1Affine {
     let si = PRI_S_POWER.apply(&coeff);
-    G1_POWER.apply(&si)
+    G1_POWER.apply(&si).into_affine()
 }
 
-fn get_g2s(coeff: Fr) -> G2Projective {
+fn get_g2s(coeff: Fr) -> G2Affine {
     let si = PRI_S_POWER.apply(&coeff);
-    G2_POWER.apply(&si)
+    G2_POWER.apply(&si).into_affine()
 }
 
 pub enum Type {
@@ -101,36 +101,58 @@ pub struct Acc1;
 
 impl Acc1 {
     fn poly_to_g1(poly: DensePolynomial<Fr>) -> G1Affine {
-        let mut bases: Vec<G1Affine> = Vec::with_capacity(poly.degree() + 1);
-        let mut scalars: Vec<<Fr as PrimeField>::BigInt> = Vec::with_capacity(poly.degree() + 1);
+        let mut idxes: Vec<usize> = Vec::with_capacity(poly.degree() + 1);
         for (i, coeff) in poly.coeffs.iter().enumerate() {
             if coeff.is_zero() {
                 continue;
             }
-            let gs = G1_S_VEC
-                .get(i)
-                .copied()
-                .unwrap_or_else(|| get_g1s(Fr::from(i as u64)).into_affine());
-            bases.push(gs);
-            scalars.push(coeff.into_repr());
+            idxes.push(i);
         }
+
+        let mut bases: Vec<G1Affine> = Vec::with_capacity(idxes.len());
+        let mut scalars: Vec<<Fr as PrimeField>::BigInt> = Vec::with_capacity(idxes.len());
+        (0..idxes.len())
+            .into_par_iter()
+            .map(|i| {
+                G1_S_VEC
+                    .get(i)
+                    .copied()
+                    .unwrap_or_else(|| get_g1s(Fr::from(i as u64)))
+            })
+            .collect_into_vec(&mut bases);
+        (0..idxes.len())
+            .into_par_iter()
+            .map(|i| poly.coeffs[i].into_repr())
+            .collect_into_vec(&mut scalars);
+
         VariableBaseMSM::multi_scalar_mul(&bases[..], &scalars[..]).into_affine()
     }
 
     fn poly_to_g2(poly: DensePolynomial<Fr>) -> G2Affine {
-        let mut bases: Vec<G2Affine> = Vec::with_capacity(poly.degree() + 1);
-        let mut scalars: Vec<<Fr as PrimeField>::BigInt> = Vec::with_capacity(poly.degree() + 1);
+        let mut idxes: Vec<usize> = Vec::with_capacity(poly.degree() + 1);
         for (i, coeff) in poly.coeffs.iter().enumerate() {
             if coeff.is_zero() {
                 continue;
             }
-            let gs = G2_S_VEC
-                .get(i)
-                .copied()
-                .unwrap_or_else(|| get_g2s(Fr::from(i as u64)).into_affine());
-            bases.push(gs);
-            scalars.push(coeff.into_repr());
+            idxes.push(i);
         }
+
+        let mut bases: Vec<G2Affine> = Vec::with_capacity(idxes.len());
+        let mut scalars: Vec<<Fr as PrimeField>::BigInt> = Vec::with_capacity(idxes.len());
+        (0..idxes.len())
+            .into_par_iter()
+            .map(|i| {
+                G2_S_VEC
+                    .get(i)
+                    .copied()
+                    .unwrap_or_else(|| get_g2s(Fr::from(i as u64)))
+            })
+            .collect_into_vec(&mut bases);
+        (0..idxes.len())
+            .into_par_iter()
+            .map(|i| poly.coeffs[i].into_repr())
+            .collect_into_vec(&mut scalars);
+
         VariableBaseMSM::multi_scalar_mul(&bases[..], &scalars[..]).into_affine()
     }
 }
@@ -157,12 +179,14 @@ impl Accumulator for Acc1 {
     type Proof = Acc1Proof;
 
     fn cal_acc_g1_sk_d(set: &DigestSet) -> G1Affine {
-        let mut x = Fr::one();
-        for (v, exp) in set.iter() {
-            let s = *PRI_S + v;
-            let exp = [*exp as u64];
-            x *= &s.pow(&exp);
-        }
+        let x = set
+            .par_iter()
+            .map(|(v, exp)| {
+                let s = *PRI_S + v;
+                let exp = [*exp as u64];
+                s.pow(&exp)
+            })
+            .reduce(Fr::one, |a, b| a * &b);
         G1_POWER.apply(&x).into_affine()
     }
     fn cal_acc_g1_d(set: &DigestSet) -> G1Affine {
@@ -170,12 +194,14 @@ impl Accumulator for Acc1 {
         Self::poly_to_g1(poly)
     }
     fn cal_acc_g2_sk_d(set: &DigestSet) -> G2Affine {
-        let mut x = Fr::one();
-        for (v, exp) in set.iter() {
-            let s = *PRI_S + v;
-            let exp = [*exp as u64];
-            x *= &s.pow(&exp);
-        }
+        let x = set
+            .par_iter()
+            .map(|(v, exp)| {
+                let s = *PRI_S + v;
+                let exp = [*exp as u64];
+                s.pow(&exp)
+            })
+            .reduce(Fr::one, |a, b| a * &b);
         G2_POWER.apply(&x).into_affine()
     }
     fn cal_acc_g2_d(set: &DigestSet) -> G2Affine {
@@ -215,44 +241,54 @@ impl Accumulator for Acc2 {
     type Proof = Acc2Proof;
 
     fn cal_acc_g1_sk_d(set: &DigestSet) -> G1Affine {
-        let mut x = Fr::zero();
-        for (a, b) in set.iter() {
-            let s = PRI_S_POWER.apply(a);
-            x += &(s * &Fr::from(*b));
-        }
+        let x = set
+            .par_iter()
+            .map(|(a, b)| {
+                let s = PRI_S_POWER.apply(a);
+                s * &Fr::from(*b)
+            })
+            .reduce(Fr::zero, |a, b| a + &b);
         G1_POWER.apply(&x).into_affine()
     }
     fn cal_acc_g1_d(set: &DigestSet) -> G1Affine {
-        set.par_iter()
-            .map(|(a, b)| {
-                let mut sa = get_g1s(*a);
-                sa.mul_assign(*b as u64);
-                sa
-            })
-            .reduce(G1Projective::zero, |a, b| a + &b)
-            .into_affine()
+        let mut bases: Vec<G1Affine> = Vec::with_capacity(set.len());
+        let mut scalars: Vec<<Fr as PrimeField>::BigInt> = Vec::with_capacity(set.len());
+        (0..set.len())
+            .into_par_iter()
+            .map(|i| get_g1s(set[i].0))
+            .collect_into_vec(&mut bases);
+        (0..set.len())
+            .into_par_iter()
+            .map(|i| <Fr as PrimeField>::BigInt::from(set[i].1 as u64))
+            .collect_into_vec(&mut scalars);
+        VariableBaseMSM::multi_scalar_mul(&bases[..], &scalars[..]).into_affine()
     }
     fn cal_acc_g2_sk_d(set: &DigestSet) -> G2Affine {
-        let mut x = Fr::zero();
-        for (a, b) in set.iter() {
-            let s = PRI_S_POWER.apply(&(*PUB_Q - a));
-            x += &(s * &Fr::from(*b));
-        }
+        let x = set
+            .par_iter()
+            .map(|(a, b)| {
+                let s = PRI_S_POWER.apply(&(*PUB_Q - a));
+                s * &Fr::from(*b)
+            })
+            .reduce(Fr::zero, |a, b| a + &b);
         G2_POWER.apply(&x).into_affine()
     }
     fn cal_acc_g2_d(set: &DigestSet) -> G2Affine {
-        set.par_iter()
-            .map(|(a, b)| {
-                let mut sa = get_g2s(*PUB_Q - a);
-                sa.mul_assign(*b as u64);
-                sa
-            })
-            .reduce(G2Projective::zero, |a, b| a + &b)
-            .into_affine()
+        let mut bases: Vec<G2Affine> = Vec::with_capacity(set.len());
+        let mut scalars: Vec<<Fr as PrimeField>::BigInt> = Vec::with_capacity(set.len());
+        (0..set.len())
+            .into_par_iter()
+            .map(|i| get_g2s(*PUB_Q - &set[i].0))
+            .collect_into_vec(&mut bases);
+        (0..set.len())
+            .into_par_iter()
+            .map(|i| <Fr as PrimeField>::BigInt::from(set[i].1 as u64))
+            .collect_into_vec(&mut scalars);
+        VariableBaseMSM::multi_scalar_mul(&bases[..], &scalars[..]).into_affine()
     }
     fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> anyhow::Result<Self::Proof> {
         let produce_size = set1.len() * set2.len();
-        let mut product: Vec<(Fr, u32)> = Vec::with_capacity(produce_size);
+        let mut product: Vec<(Fr, u64)> = Vec::with_capacity(produce_size);
         (0..produce_size)
             .into_par_iter()
             .map(|i| {
@@ -260,21 +296,24 @@ impl Accumulator for Acc2 {
                 let set2idx = i % set2.len();
                 let (s1, q1) = set1[set1idx];
                 let (s2, q2) = set2[set2idx];
-                (*PUB_Q + &s1 - &s2, q1 * q2)
+                (*PUB_Q + &s1 - &s2, (q1 * q2) as u64)
             })
             .collect_into_vec(&mut product);
         if product.par_iter().any(|(x, _)| *x == *PUB_Q) {
             bail!("cannot generate proof");
         }
-        let f = product
-            .par_iter()
-            .map(|(a, b)| {
-                let mut sa = get_g1s(*a);
-                sa.mul_assign(*b as u64);
-                sa
-            })
-            .reduce(G1Projective::zero, |a, b| a + &b)
-            .into_affine();
+
+        let mut bases: Vec<G1Affine> = Vec::with_capacity(produce_size);
+        let mut scalars: Vec<<Fr as PrimeField>::BigInt> = Vec::with_capacity(produce_size);
+        (0..produce_size)
+            .into_par_iter()
+            .map(|i| get_g1s(product[i].0))
+            .collect_into_vec(&mut bases);
+        (0..produce_size)
+            .into_par_iter()
+            .map(|i| <Fr as PrimeField>::BigInt::from(product[i].1))
+            .collect_into_vec(&mut scalars);
+        let f = VariableBaseMSM::multi_scalar_mul(&bases[..], &scalars[..]).into_affine();
         Ok(Acc2Proof { f })
     }
 }
