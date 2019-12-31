@@ -9,6 +9,12 @@ static INTRA_INDEX_ID_CNT: AtomicU64 = AtomicU64::new(0);
 static SKIP_LIST_ID_CNT: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub enum IntraIndexNode {
+    NonLeaf(Box<IntraIndexNonLeaf>),
+    Leaf(Box<IntraIndexLeaf>),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct IntraIndexNonLeaf {
     pub id: u64,
     pub block_id: u64,
