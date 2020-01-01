@@ -1,5 +1,5 @@
-use super::Parameter;
-use crate::acc::{self, curve::G1Affine, Accumulator};
+use super::{multiset_to_g1, Parameter};
+use crate::acc::curve::G1Affine;
 use crate::digest::{blake2, Digest, Digestable};
 use crate::set::MultiSet;
 use rayon::prelude::*;
@@ -36,12 +36,7 @@ impl Object {
             .map(|w| SetElementType::W(w.clone()))
             .collect::<MultiSet<_>>()
             + v_data_to_set(&obj.v_data, &param.v_bit_len);
-        let acc_value = match (param.acc_type, param.use_sk) {
-            (acc::Type::ACC1, true) => acc::Acc1::cal_acc_g1_sk(&set_data),
-            (acc::Type::ACC1, false) => acc::Acc1::cal_acc_g1(&set_data),
-            (acc::Type::ACC2, true) => acc::Acc2::cal_acc_g1_sk(&set_data),
-            (acc::Type::ACC2, false) => acc::Acc2::cal_acc_g1(&set_data),
-        };
+        let acc_value = multiset_to_g1(&set_data, param);
         Self {
             id,
             block_id: obj.block_id,

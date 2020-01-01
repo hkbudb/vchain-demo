@@ -4,7 +4,7 @@ extern crate lazy_static;
 extern crate log;
 
 pub mod acc;
-pub mod chain;
 pub mod digest;
-pub mod query;
 pub mod set;
+
+pub mod chain;

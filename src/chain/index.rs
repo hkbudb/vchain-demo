@@ -1,4 +1,4 @@
-use super::SetElementType;
+use super::{multiset_to_g1, Parameter, SetElementType};
 use crate::acc::curve::G1Affine;
 use crate::digest::{concat_digest_ref, Digest, Digestable};
 use crate::set::MultiSet;
@@ -58,16 +58,16 @@ impl IntraIndexNonLeaf {
     pub fn create(
         block_id: u64,
         set_data: &MultiSet<SetElementType>,
-        acc_value: &G1Affine,
         child_hashes: &SmallVec<[Digest; 2]>,
         child_ids: &SmallVec<[u64; 2]>,
+        param: &Parameter,
     ) -> Self {
         let id = INTRA_INDEX_ID_CNT.fetch_add(1, Ordering::SeqCst);
         Self {
             id,
             block_id,
             set_data: set_data.clone(),
-            acc_value: *acc_value,
+            acc_value: multiset_to_g1(&set_data, param),
             child_hash_digest: concat_digest_ref(child_hashes.iter()),
             child_hashes: child_hashes.clone(),
             child_ids: child_ids.clone(),
@@ -96,16 +96,16 @@ impl IntraIndexLeaf {
     pub fn create(
         block_id: u64,
         set_data: &MultiSet<SetElementType>,
-        acc_value: &G1Affine,
         obj_id: u64,
         obj_hash: &Digest,
+        param: &Parameter,
     ) -> Self {
         let id = INTRA_INDEX_ID_CNT.fetch_add(1, Ordering::SeqCst);
         Self {
             id,
             block_id,
             set_data: set_data.clone(),
-            acc_value: *acc_value,
+            acc_value: multiset_to_g1(&set_data, param),
             obj_id,
             obj_hash: *obj_hash,
         }
@@ -167,11 +167,13 @@ pub struct BlockData {
     pub set_data: MultiSet<SetElementType>,
     #[serde(with = "crate::acc::serde_impl")]
     pub acc_value: G1Affine,
-    pub skip_list_ids: Option<Vec<u64>>,
+    pub skip_list_ids: Vec<u64>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct BlockHeader {
+    pub block_id: u64,
+    pub prev_hash: Digest,
     pub data_root: Digest,
     pub skip_list_root: Option<Digest>,
 }
