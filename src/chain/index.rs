@@ -1,6 +1,6 @@
 use super::{multiset_to_g1, Parameter, SetElementType};
 use crate::acc::curve::G1Affine;
-use crate::digest::{concat_digest_ref, Digest, Digestable};
+use crate::digest::{blake2, concat_digest_ref, Digest, Digestable};
 use crate::set::MultiSet;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -77,7 +77,7 @@ impl IntraIndexNonLeaf {
 
 impl Digestable for IntraIndexNonLeaf {
     fn to_digest(&self) -> Digest {
-        concat_digest_ref([self.child_hash_digest, self.acc_value.to_digest()].iter())
+        concat_digest_ref([self.acc_value.to_digest(), self.child_hash_digest].iter())
     }
 }
 
@@ -139,7 +139,7 @@ impl SkipListNode {
         pre_skipped_hash: &Digest,
     ) -> Self {
         let id = SKIP_LIST_ID_CNT.fetch_add(1, Ordering::SeqCst);
-        let digest = concat_digest_ref([*pre_skipped_hash, acc_value.to_digest()].iter());
+        let digest = concat_digest_ref([acc_value.to_digest(), *pre_skipped_hash].iter());
         Self {
             id,
             block_id,
@@ -176,4 +176,17 @@ pub struct BlockHeader {
     pub prev_hash: Digest,
     pub data_root: Digest,
     pub skip_list_root: Option<Digest>,
+}
+
+impl Digestable for BlockHeader {
+    fn to_digest(&self) -> Digest {
+        let mut state = blake2().to_state();
+        state.update(&self.block_id.to_le_bytes());
+        state.update(&self.prev_hash.0);
+        state.update(&self.data_root.0);
+        if let Some(d) = self.skip_list_root {
+            state.update(&d.0);
+        }
+        Digest::from(state.finalize())
+    }
 }

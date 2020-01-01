@@ -3,7 +3,6 @@ use crate::acc::{
     curve::{G1Affine, G2Affine},
     Accumulator,
 };
-use crate::digest::Digest;
 use crate::set::MultiSet;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -31,7 +30,6 @@ pub struct Parameter {
 
 pub trait ReadInterface {
     fn get_parameter(&self) -> Result<Parameter>;
-    fn read_block_digest(&self, id: u64) -> Result<Digest>;
     fn read_block_header(&self, id: u64) -> Result<BlockHeader>;
     fn read_block_data(&self, id: u64) -> Result<BlockData>;
     fn read_intra_index_node(&self, id: u64) -> Result<IntraIndexNode>;
