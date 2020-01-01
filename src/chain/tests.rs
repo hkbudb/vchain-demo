@@ -1,4 +1,5 @@
 use super::*;
+use crate::digest::concat_digest_ref;
 use anyhow::Context;
 use std::collections::HashMap;
 
@@ -17,7 +18,16 @@ impl ReadInterface for FakeInMemChain {
         self.param.clone().context("failed to get param")
     }
     fn read_block_digest(&self, id: u64) -> Result<Digest> {
-
+        let header = self.read_block_header(id)?;
+        Ok(concat_digest_ref(
+            [
+                Some(header.prev_hash),
+                Some(header.data_root),
+                header.skip_list_root,
+            ]
+            .iter()
+            .filter_map(|h| h.as_ref()),
+        ))
     }
     fn read_block_header(&self, id: u64) -> Result<BlockHeader> {
         self.block_headers
