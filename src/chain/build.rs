@@ -1,3 +1,5 @@
+#![allow(clippy::cognitive_complexity)]
+
 use super::*;
 use crate::digest::{concat_digest, Digest, Digestable};
 use crate::set::MultiSet;
@@ -9,7 +11,9 @@ pub fn build_block<'a>(
     prev_hash: Digest,
     raw_objs: impl Iterator<Item = &'a RawObject>,
     chain: &mut (impl ReadInterface + WriteInterface),
-) -> Result<()> {
+) -> Result<BlockHeader> {
+    debug!("build block #{}", block_id);
+
     let param = chain.get_parameter()?;
     let objs: Vec<Object> = raw_objs.map(|o| Object::create(o, &param)).collect();
     for obj in &objs {
@@ -210,5 +214,5 @@ pub fn build_block<'a>(
     chain.write_block_header(block_header)?;
     chain.write_block_data(block_data)?;
 
-    Ok(())
+    Ok(block_header)
 }

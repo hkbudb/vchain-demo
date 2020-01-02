@@ -41,16 +41,20 @@ pub fn skipped_blocks_num(level: SkipLstLvlType) -> IdType {
 // sep = \t or space
 // v_data = v_1 comma v_2 ...
 // w_data = w_1 comma w_2 ...
-pub fn load_raw_obj_from_file(path: &Path) -> Result<BTreeMap<IdType, RawObject>> {
+pub fn load_raw_obj_from_file(path: &Path) -> Result<BTreeMap<IdType, Vec<RawObject>>> {
     let mut reader = BufReader::new(File::open(path)?);
     let mut buf = String::new();
     reader.read_to_string(&mut buf)?;
     load_raw_obj_from_str(&buf)
 }
-pub fn load_raw_obj_from_str(input: &str) -> Result<BTreeMap<IdType, RawObject>> {
+pub fn load_raw_obj_from_str(input: &str) -> Result<BTreeMap<IdType, Vec<RawObject>>> {
     let mut res = BTreeMap::new();
     for line in input.lines() {
-        let mut split_str = line.trim().splitn(3, |c| c == '[' || c == ']');
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let mut split_str = line.splitn(3, |c| c == '[' || c == ']');
         let block_id: IdType = split_str
             .next()
             .context(format!("failed to parse line {}", line))?
@@ -75,14 +79,13 @@ pub fn load_raw_obj_from_str(input: &str) -> Result<BTreeMap<IdType, RawObject>>
             .map(|s| s.trim().to_owned())
             .filter(|s| !s.is_empty())
             .collect();
-        res.insert(
+
+        let raw_obj = RawObject {
             block_id,
-            RawObject {
-                block_id,
-                v_data,
-                w_data,
-            },
-        );
+            v_data,
+            w_data,
+        };
+        res.entry(block_id).or_insert_with(Vec::new).push(raw_obj);
     }
     Ok(res)
 }
@@ -93,32 +96,31 @@ mod tests {
 
     #[test]
     fn test_load_raw_obj() {
-        let input = "1\t[1,2]\t{a,b}\n2 [ 3, 4 ] { c, d, }\n3\t[ 5, 6 ]\t { e }";
+        let input = "1\t[1,2]\t{a,b}\n2 [ 3, 4 ] { c, d, }\n2\t[ 5, 6 ]\t { e }\n";
         let expect = {
-            let mut out: BTreeMap<IdType, RawObject> = BTreeMap::new();
+            let mut out: BTreeMap<IdType, Vec<RawObject>> = BTreeMap::new();
             out.insert(
                 1,
-                RawObject {
+                vec![RawObject {
                     block_id: 1,
                     v_data: vec![1, 2],
                     w_data: ["a".to_owned(), "b".to_owned()].iter().cloned().collect(),
-                },
+                }],
             );
             out.insert(
                 2,
-                RawObject {
-                    block_id: 2,
-                    v_data: vec![3, 4],
-                    w_data: ["c".to_owned(), "d".to_owned()].iter().cloned().collect(),
-                },
-            );
-            out.insert(
-                3,
-                RawObject {
-                    block_id: 3,
-                    v_data: vec![5, 6],
-                    w_data: ["e".to_owned()].iter().cloned().collect(),
-                },
+                vec![
+                    RawObject {
+                        block_id: 2,
+                        v_data: vec![3, 4],
+                        w_data: ["c".to_owned(), "d".to_owned()].iter().cloned().collect(),
+                    },
+                    RawObject {
+                        block_id: 2,
+                        v_data: vec![5, 6],
+                        w_data: ["e".to_owned()].iter().cloned().collect(),
+                    },
+                ],
             );
             out
         };

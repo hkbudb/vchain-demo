@@ -1,4 +1,6 @@
 use super::*;
+use crate::acc;
+use crate::digest::{Digest, Digestable};
 use anyhow::Context;
 use std::collections::HashMap;
 
@@ -78,4 +80,94 @@ impl WriteInterface for FakeInMemChain {
         self.objects.insert(id, obj);
         Ok(())
     }
+}
+
+impl FakeInMemChain {
+    fn new() -> Self {
+        Default::default()
+    }
+
+    fn build_chain(&mut self, data: &str, param: &Parameter) -> Result<()> {
+        info!("build chain");
+        self.set_parameter(param.clone())?;
+        let mut prev_hash = Digest::default();
+        for (id, objs) in load_raw_obj_from_str(data)?.iter() {
+            let header = build_block(*id, prev_hash, objs.iter(), self)?;
+            prev_hash = header.to_digest();
+        }
+        Ok(())
+    }
+}
+
+const TEST_DATA_1: &'static str = r#"
+1 [ 1 ] { a }
+1 [ 2 ] { a }
+1 [ 3 ] { a }
+1 [ 4 ] { a }
+2 [ 1 ] { b }
+2 [ 2 ] { b }
+2 [ 3 ] { b }
+2 [ 4 ] { b }
+"#;
+
+const TEST_DATA_2: &'static str = r#"
+1 [ 1 ] { a }
+2 [ 1 ] { b }
+3 [ 1 ] { b }
+4 [ 1 ] { b }
+5 [ 1 ] { a }
+6 [ 1 ] { b }
+7 [ 1 ] { b }
+8 [ 1 ] { b }
+9 [ 1 ] { b }
+10 [ 1 ] { a }
+11 [ 1 ] { b }
+12 [ 1 ] { b }
+13 [ 1 ] { b }
+14 [ 1 ] { b }
+15 [ 1 ] { b }
+16 [ 1 ] { b }
+17 [ 1 ] { b }
+18 [ 1 ] { b }
+19 [ 1 ] { a }
+20 [ 1 ] { b }
+"#;
+
+#[test]
+fn test_data1_acc1_flat() {
+    let mut chain = FakeInMemChain::new();
+    let param = Parameter {
+        v_bit_len: vec![3],
+        acc_type: acc::Type::ACC1,
+        use_sk: true,
+        intra_index: false,
+        skip_list_max_level: 0,
+    };
+    chain.build_chain(TEST_DATA_1, &param).unwrap();
+}
+
+#[test]
+fn test_data1_acc1() {
+    let mut chain = FakeInMemChain::new();
+    let param = Parameter {
+        v_bit_len: vec![3],
+        acc_type: acc::Type::ACC1,
+        use_sk: true,
+        intra_index: true,
+        skip_list_max_level: 0,
+    };
+    chain.build_chain(TEST_DATA_1, &param).unwrap();
+}
+
+#[test]
+fn test_data2_acc2_skip_list() {
+    let mut chain = FakeInMemChain::new();
+    let param = Parameter {
+        v_bit_len: vec![3],
+        acc_type: acc::Type::ACC2,
+        use_sk: true,
+        intra_index: true,
+        skip_list_max_level: 2,
+    };
+    chain.build_chain(TEST_DATA_2, &param).unwrap();
 }

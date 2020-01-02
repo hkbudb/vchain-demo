@@ -107,7 +107,7 @@ impl IntraIndexLeaf {
             set_data,
             acc_value,
             obj_id,
-            obj_hash: obj_hash,
+            obj_hash,
         }
     }
 }
@@ -170,7 +170,7 @@ pub struct BlockData {
     pub skip_list_ids: Vec<IdType>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
 pub struct BlockHeader {
     pub block_id: IdType,
     pub prev_hash: Digest,
