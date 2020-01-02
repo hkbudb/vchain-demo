@@ -1,11 +1,9 @@
-use crate::acc::{
-    self,
-    curve::{G1Affine, G2Affine},
-    Accumulator,
-};
-use crate::set::MultiSet;
+use crate::acc;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+
+pub mod utils;
+pub use utils::*;
 
 pub mod object;
 pub use object::*;
@@ -44,24 +42,6 @@ pub trait WriteInterface {
     fn write_intra_index_node(&mut self, node: IntraIndexNode) -> Result<()>;
     fn write_skip_list_node(&mut self, node: SkipListNode) -> Result<()>;
     fn write_object(&mut self, obj: Object) -> Result<()>;
-}
-
-pub fn multiset_to_g1(set: &MultiSet<SetElementType>, param: &Parameter) -> G1Affine {
-    match (param.acc_type, param.use_sk) {
-        (acc::Type::ACC1, true) => acc::Acc1::cal_acc_g1_sk(&set),
-        (acc::Type::ACC1, false) => acc::Acc1::cal_acc_g1(&set),
-        (acc::Type::ACC2, true) => acc::Acc2::cal_acc_g1_sk(&set),
-        (acc::Type::ACC2, false) => acc::Acc2::cal_acc_g1(&set),
-    }
-}
-
-pub fn multiset_to_g2(set: &MultiSet<SetElementType>, param: &Parameter) -> G2Affine {
-    match (param.acc_type, param.use_sk) {
-        (acc::Type::ACC1, true) => acc::Acc1::cal_acc_g2_sk(&set),
-        (acc::Type::ACC1, false) => acc::Acc1::cal_acc_g2(&set),
-        (acc::Type::ACC2, true) => acc::Acc2::cal_acc_g2_sk(&set),
-        (acc::Type::ACC2, false) => acc::Acc2::cal_acc_g2(&set),
-    }
 }
 
 #[cfg(test)]
