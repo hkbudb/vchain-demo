@@ -72,6 +72,7 @@ mod tests {
 
     #[test]
     fn test_serde() {
+        #[allow(clippy::blacklisted_name)]
         let foo = Foo {
             f1: G1Affine::prime_subgroup_generator(),
             f2: G2Affine::prime_subgroup_generator(),

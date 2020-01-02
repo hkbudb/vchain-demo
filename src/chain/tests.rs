@@ -99,7 +99,7 @@ impl FakeInMemChain {
     }
 }
 
-const TEST_DATA_1: &'static str = r#"
+const TEST_DATA_1: &str = r#"
 1 [ 1 ] { a }
 1 [ 2 ] { a }
 1 [ 3 ] { a }
@@ -110,7 +110,7 @@ const TEST_DATA_1: &'static str = r#"
 2 [ 4 ] { b }
 "#;
 
-const TEST_DATA_2: &'static str = r#"
+const TEST_DATA_2: &str = r#"
 1 [ 1 ] { a }
 2 [ 1 ] { b }
 3 [ 1 ] { b }
