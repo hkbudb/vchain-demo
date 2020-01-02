@@ -204,7 +204,11 @@ impl Query {
         if let Some(q_bool) = &self.q_bool {
             res["bool"] = json!(q_bool
                 .iter()
-                .map(|sub_exp| sub_exp.iter().map(|w| json!(w)).collect::<Vec<_>>())
+                .map(|sub_exp| {
+                    let mut sub_exp = sub_exp.iter().collect::<Vec<_>>();
+                    sub_exp.sort_unstable();
+                    sub_exp.iter().map(|w| json!(w)).collect::<Vec<_>>()
+                })
                 .collect::<Vec<_>>());
         }
         res
