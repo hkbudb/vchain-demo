@@ -16,6 +16,12 @@ pub struct MultiSet<T: SetElement> {
 }
 
 impl<T: SetElement> MultiSet<T> {
+    pub fn new() -> Self {
+        Self {
+            inner: HashMap::new(),
+        }
+    }
+
     pub fn from_vec(input: Vec<T>) -> Self {
         Self::from_iter(input.into_iter())
     }

@@ -134,19 +134,19 @@ impl SkipListNode {
     pub fn create(
         block_id: IdType,
         level: SkipLstLvlType,
-        set_data: &MultiSet<SetElementType>,
-        acc_value: &G1Affine,
-        pre_skipped_hash: &Digest,
+        set_data: MultiSet<SetElementType>,
+        acc_value: G1Affine,
+        pre_skipped_hash: Digest,
     ) -> Self {
         let id = SKIP_LIST_ID_CNT.fetch_add(1, Ordering::SeqCst) as IdType;
-        let digest = concat_digest_ref([acc_value.to_digest(), *pre_skipped_hash].iter());
+        let digest = concat_digest_ref([acc_value.to_digest(), pre_skipped_hash].iter());
         Self {
             id,
             block_id,
             level,
-            set_data: set_data.clone(),
-            acc_value: *acc_value,
-            pre_skipped_hash: *pre_skipped_hash,
+            set_data,
+            acc_value,
+            pre_skipped_hash,
             digest,
         }
     }
@@ -155,9 +155,9 @@ impl SkipListNode {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum IntraData {
     // List of object ids
-    Flat(Vec<u64>),
+    Flat(Vec<IdType>),
     // IntraIndexNode root id
-    Index(u64),
+    Index(IdType),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -167,10 +167,10 @@ pub struct BlockData {
     pub set_data: MultiSet<SetElementType>,
     #[serde(with = "crate::acc::serde_impl")]
     pub acc_value: G1Affine,
-    pub skip_list_ids: Vec<u64>,
+    pub skip_list_ids: Vec<IdType>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Default, Serialize, Deserialize)]
 pub struct BlockHeader {
     pub block_id: IdType,
     pub prev_hash: Digest,

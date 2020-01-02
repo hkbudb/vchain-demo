@@ -1,4 +1,4 @@
-use super::{IdType, Parameter, RawObject, SetElementType};
+use super::{IdType, Parameter, RawObject, SetElementType, SkipLstLvlType};
 use crate::acc::{
     self,
     curve::{G1Affine, G2Affine},
@@ -12,6 +12,7 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::Path;
 
+#[inline]
 pub fn multiset_to_g1(set: &MultiSet<SetElementType>, param: &Parameter) -> G1Affine {
     match (param.acc_type, param.use_sk) {
         (acc::Type::ACC1, true) => acc::Acc1::cal_acc_g1_sk(&set),
@@ -21,6 +22,7 @@ pub fn multiset_to_g1(set: &MultiSet<SetElementType>, param: &Parameter) -> G1Af
     }
 }
 
+#[inline]
 pub fn multiset_to_g2(set: &MultiSet<SetElementType>, param: &Parameter) -> G2Affine {
     match (param.acc_type, param.use_sk) {
         (acc::Type::ACC1, true) => acc::Acc1::cal_acc_g2_sk(&set),
@@ -28,6 +30,11 @@ pub fn multiset_to_g2(set: &MultiSet<SetElementType>, param: &Parameter) -> G2Af
         (acc::Type::ACC2, true) => acc::Acc2::cal_acc_g2_sk(&set),
         (acc::Type::ACC2, false) => acc::Acc2::cal_acc_g2(&set),
     }
+}
+
+#[inline]
+pub fn skipped_blocks_num(level: SkipLstLvlType) -> IdType {
+    1 << (level + 2)
 }
 
 // input format: block_id sep [ v_data ] sep { w_data }
