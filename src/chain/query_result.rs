@@ -1,6 +1,6 @@
 use super::*;
 use crate::acc::curve::{G1Affine, G1Projective};
-use crate::acc::{Accumulator, AccumulatorProof};
+use crate::acc::{self, Accumulator, AccumulatorProof};
 use crate::digest::{blake2, concat_digest, concat_digest_ref, Digest, Digestable};
 use crate::set::MultiSet;
 use algebra::curves::ProjectiveCurve;
@@ -49,6 +49,7 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
     pub fn get_object_acc(&self, proof_idx: AccProofIdxType) -> Option<&G1Affine> {
         Some(&self.object_accs.get(&proof_idx.0)?.get(proof_idx.1)?.0)
     }
+
     pub fn verify(&self) -> VerifyResult {
         match AP::TYPE {
             acc::Type::ACC1 => {
@@ -83,7 +84,7 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
                         Some(accs) => accs,
                         None => return VerifyResult::InvalidSetIdx(i),
                     };
-                    assert_eq!(proofs.len(), 1);
+                    debug_assert_eq!(proofs.len(), 1);
                     let acc_proof_idx = (i, 0);
                     let proof = match proofs[0].as_any().downcast_ref::<acc::Acc2Proof>() {
                         Some(proof) => proof,
@@ -100,6 +101,61 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
             }
         }
         VerifyResult::Ok
+    }
+
+    pub fn add_proof(
+        &mut self,
+        query_exp_set: &MultiSet<SetElementType>,
+        query_exp_set_d: &acc::DigestSet,
+        object_set: &MultiSet<SetElementType>,
+        object_set_d: &acc::DigestSet,
+        object_acc: &G1Affine,
+    ) -> Result<AccProofIdxType> {
+        let query_exp_set_idx = match self.query_exp_sets.iter().position(|s| s == query_exp_set) {
+            Some(idx) => idx,
+            None => {
+                self.query_exp_sets.push(query_exp_set.clone());
+                self.query_exp_sets.len() - 1
+            }
+        };
+        let object_acc = ObjAcc(*object_acc);
+        let proof = AP::gen_proof(object_set_d, query_exp_set_d)?;
+
+        match AP::TYPE {
+            acc::Type::ACC1 => {
+                let proof_ptr = self
+                    .proofs
+                    .entry(query_exp_set_idx)
+                    .or_insert_with(Vec::new);
+                proof_ptr.push(proof);
+                let acc_ptr = self
+                    .object_accs
+                    .entry(query_exp_set_idx)
+                    .or_insert_with(Vec::new);
+                acc_ptr.push(object_acc);
+                debug_assert_eq!(proof_ptr.len(), acc_ptr.len());
+                Ok((query_exp_set_idx, proof_ptr.len() - 1))
+            }
+            acc::Type::ACC2 => {
+                let proof_ptr = self
+                    .proofs
+                    .entry(query_exp_set_idx)
+                    .or_insert_with(Vec::new);
+                let acc_ptr = self
+                    .object_accs
+                    .entry(query_exp_set_idx)
+                    .or_insert_with(Vec::new);
+                acc_ptr.push(object_acc);
+                if proof_ptr.is_empty() {
+                    proof_ptr.push(proof);
+                    Ok((query_exp_set_idx, 0))
+                } else {
+                    debug_assert_eq!(proof_ptr.len(), 1);
+                    proof_ptr[0].combine_proof(&proof)?;
+                    Ok((query_exp_set_idx, acc_ptr.len() - 1))
+                }
+            }
+        }
     }
 }
 

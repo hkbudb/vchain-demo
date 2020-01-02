@@ -6,6 +6,8 @@ pub mod digest_set;
 pub mod serde_impl;
 pub mod utils;
 
+pub use digest_set::DigestSet;
+
 use crate::digest::{Digest, Digestable};
 use crate::set::{MultiSet, SetElement};
 use algebra::{
@@ -16,7 +18,6 @@ use anyhow::{self, bail, ensure, Context};
 use core::any::Any;
 use core::str::FromStr;
 use curve::{G1Affine, G1Projective, G2Affine, G2Projective};
-use digest_set::DigestSet;
 use ff_fft::DensePolynomial;
 use field::{Fq12, Fr};
 use rayon::prelude::*;
@@ -106,6 +107,12 @@ pub trait Accumulator {
 pub trait AccumulatorProof: Eq + PartialEq {
     const TYPE: Type;
 
+    fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> anyhow::Result<Self>
+    where
+        Self: core::marker::Sized;
+
+    fn combine_proof(&mut self, other: &Self) -> anyhow::Result<()>;
+
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -180,6 +187,14 @@ pub struct Acc1Proof {
 impl AccumulatorProof for Acc1Proof {
     const TYPE: Type = Type::ACC1;
 
+    fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> anyhow::Result<Self> {
+        Acc1::gen_proof(set1, set2)
+    }
+
+    fn combine_proof(&mut self, other: &Self) -> anyhow::Result<()> {
+        bail!("invalid operation");
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -250,6 +265,17 @@ pub struct Acc2Proof {
 
 impl AccumulatorProof for Acc2Proof {
     const TYPE: Type = Type::ACC2;
+
+    fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> anyhow::Result<Self> {
+        Acc2::gen_proof(set1, set2)
+    }
+
+    fn combine_proof(&mut self, other: &Self) -> anyhow::Result<()> {
+        let mut f = self.f.into_projective();
+        f.add_assign_mixed(&other.f);
+        self.f = f.into_affine();
+        Ok(())
+    }
 
     fn as_any(&self) -> &dyn Any {
         self
