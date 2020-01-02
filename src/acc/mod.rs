@@ -102,6 +102,13 @@ pub trait Accumulator {
     fn gen_proof(set1: &DigestSet, set2: &DigestSet) -> anyhow::Result<Self::Proof>;
 }
 
+pub trait AccumulatorProof: Eq + PartialEq {
+    const TYPE: Type;
+    type SecondArgType: AffineCurve;
+
+    fn verify(&self, first: &G1Affine, second: &Self::SecondArgType) -> bool;
+}
+
 pub struct Acc1;
 
 impl Acc1 {
@@ -170,8 +177,11 @@ pub struct Acc1Proof {
     f2: G2Affine,
 }
 
-impl Acc1Proof {
-    pub fn verify(&self, acc1: &G1Affine, acc2: &G1Affine) -> bool {
+impl AccumulatorProof for Acc1Proof {
+    const TYPE: Type = Type::ACC1;
+    type SecondArgType = G1Affine;
+
+    fn verify(&self, acc1: &G1Affine, acc2: &G1Affine) -> bool {
         Curve::product_of_pairings(&[
             (&acc1.prepare(), &self.f1.prepare()),
             (&acc2.prepare(), &self.f2.prepare()),
@@ -233,8 +243,11 @@ pub struct Acc2Proof {
     f: G1Affine,
 }
 
-impl Acc2Proof {
-    pub fn verify(&self, acc1: &G1Affine, acc2: &G2Affine) -> bool {
+impl AccumulatorProof for Acc2Proof {
+    const TYPE: Type = Type::ACC2;
+    type SecondArgType = G2Affine;
+
+    fn verify(&self, acc1: &G1Affine, acc2: &G2Affine) -> bool {
         let a = Curve::pairing(*acc1, *acc2);
         let b = Curve::pairing(self.f, G2Affine::prime_subgroup_generator());
         a == b
