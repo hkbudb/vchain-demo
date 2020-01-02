@@ -1,4 +1,4 @@
-use super::{multiset_to_g1, IdType, Parameter, SetElementType, SkipLstLvlType};
+use super::{IdType, SetElementType, SkipLstLvlType};
 use crate::acc::curve::G1Affine;
 use crate::digest::{blake2, concat_digest_ref, Digest, Digestable};
 use crate::set::MultiSet;
@@ -51,26 +51,26 @@ pub struct IntraIndexNonLeaf {
     pub acc_value: G1Affine,
     pub child_hash_digest: Digest,
     pub child_hashes: SmallVec<[Digest; 2]>,
-    pub child_ids: SmallVec<[u64; 2]>,
+    pub child_ids: SmallVec<[IdType; 2]>,
 }
 
 impl IntraIndexNonLeaf {
     pub fn create(
         block_id: IdType,
-        set_data: &MultiSet<SetElementType>,
-        child_hashes: &SmallVec<[Digest; 2]>,
-        child_ids: &SmallVec<[u64; 2]>,
-        param: &Parameter,
+        set_data: MultiSet<SetElementType>,
+        acc_value: G1Affine,
+        child_hashes: SmallVec<[Digest; 2]>,
+        child_ids: SmallVec<[IdType; 2]>,
     ) -> Self {
         let id = INTRA_INDEX_ID_CNT.fetch_add(1, Ordering::SeqCst) as IdType;
         Self {
             id,
             block_id,
-            set_data: set_data.clone(),
-            acc_value: multiset_to_g1(&set_data, param),
+            set_data,
+            acc_value,
             child_hash_digest: concat_digest_ref(child_hashes.iter()),
-            child_hashes: child_hashes.clone(),
-            child_ids: child_ids.clone(),
+            child_hashes,
+            child_ids,
         }
     }
 }
@@ -95,19 +95,19 @@ pub struct IntraIndexLeaf {
 impl IntraIndexLeaf {
     pub fn create(
         block_id: IdType,
-        set_data: &MultiSet<SetElementType>,
+        set_data: MultiSet<SetElementType>,
+        acc_value: G1Affine,
         obj_id: IdType,
-        obj_hash: &Digest,
-        param: &Parameter,
+        obj_hash: Digest,
     ) -> Self {
         let id = INTRA_INDEX_ID_CNT.fetch_add(1, Ordering::SeqCst) as IdType;
         Self {
             id,
             block_id,
-            set_data: set_data.clone(),
-            acc_value: multiset_to_g1(&set_data, param),
+            set_data,
+            acc_value,
             obj_id,
-            obj_hash: *obj_hash,
+            obj_hash: obj_hash,
         }
     }
 }
