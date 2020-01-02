@@ -1,12 +1,14 @@
 use crate::digest::Digestable;
+use core::iter::FromIterator;
+use core::ops::{Add, BitAnd, BitOr, Deref};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::iter::FromIterator;
-use std::ops::{Add, BitAnd, BitOr, Deref};
 
-pub trait SetElement: Digestable + Clone + Send + Sync + Eq + PartialEq + std::hash::Hash {}
-impl<T> SetElement for T where T: Digestable + Clone + Send + Sync + Eq + PartialEq + std::hash::Hash
-{}
+pub trait SetElement: Digestable + Clone + Send + Sync + Eq + PartialEq + core::hash::Hash {}
+impl<T> SetElement for T where
+    T: Digestable + Clone + Send + Sync + Eq + PartialEq + core::hash::Hash
+{
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Default, Serialize, Deserialize)]
 pub struct MultiSet<T: SetElement> {

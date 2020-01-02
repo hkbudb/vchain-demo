@@ -1,25 +1,25 @@
-use super::{multiset_to_g1, Parameter};
+use super::{multiset_to_g1, IdType, Parameter};
 use crate::acc::curve::G1Affine;
 use crate::digest::{blake2, Digest, Digestable};
 use crate::set::MultiSet;
+use core::sync::atomic::{AtomicU64, Ordering};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 static OBJECT_ID_CNT: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RawObject {
-    pub block_id: u64,
+    pub block_id: IdType,
     pub v_data: Vec<u32>,
     pub w_data: HashSet<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Object {
-    pub id: u64,
-    pub block_id: u64,
+    pub id: IdType,
+    pub block_id: IdType,
     pub v_data: Vec<u32>,
     pub w_data: HashSet<String>,
     pub set_data: MultiSet<SetElementType>,
@@ -29,7 +29,7 @@ pub struct Object {
 
 impl Object {
     pub fn create(obj: &RawObject, param: &Parameter) -> Self {
-        let id = OBJECT_ID_CNT.fetch_add(1, Ordering::SeqCst);
+        let id = OBJECT_ID_CNT.fetch_add(1, Ordering::SeqCst) as IdType;
         let set_data = obj
             .w_data
             .iter()

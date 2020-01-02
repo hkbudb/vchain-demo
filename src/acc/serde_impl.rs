@@ -1,9 +1,9 @@
 use algebra::AffineCurve;
+use core::marker::PhantomData;
 use serde::{
     de::{Deserializer, Visitor},
     ser::Serializer,
 };
-use std::marker::PhantomData;
 
 pub fn serialize<S: Serializer, C: AffineCurve>(c: &C, s: S) -> Result<S::Ok, S::Error> {
     let mut buf = Vec::<u8>::new();
@@ -17,8 +17,8 @@ pub fn serialize<S: Serializer, C: AffineCurve>(c: &C, s: S) -> Result<S::Ok, S:
 }
 
 pub fn deserialize<'de, D: Deserializer<'de>, C: AffineCurve>(d: D) -> Result<C, D::Error> {
+    use core::fmt;
     use serde::de::Error as DeError;
-    use std::fmt;
 
     struct HexVisitor<C>(PhantomData<C>);
 

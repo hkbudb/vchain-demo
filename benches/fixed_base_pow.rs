@@ -1,6 +1,6 @@
 use algebra::{Field, PrimeField, ProjectiveCurve};
+use core::str::FromStr;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use std::str::FromStr;
 use vchain::acc::utils::*;
 use vchain::acc::{
     curve::{G1Projective as G1, G2Projective as G2},

@@ -13,13 +13,13 @@ use algebra::{
     PrimeField, ProjectiveCurve,
 };
 use anyhow::{self, bail, ensure, Context};
+use core::str::FromStr;
 use curve::{G1Affine, G1Projective, G2Affine, G2Projective};
 use digest_set::DigestSet;
 use ff_fft::DensePolynomial;
 use field::{Fq12, Fr};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use utils::{xgcd, FixedBaseCurvePow, FixedBaseScalarPow};
 
 const GS_VEC_LEN: usize = 1000;

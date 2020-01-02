@@ -32,8 +32,8 @@ impl<'de> Deserialize<'de> for Digest {
     where
         D: Deserializer<'de>,
     {
+        use core::fmt;
         use serde::de::Error as DeError;
-        use std::fmt;
 
         struct HexVisitor;
 

@@ -158,8 +158,8 @@ mod tests {
     use super::*;
     use crate::acc::curve::{G1Projective as G1, G2Projective as G2};
     use algebra::Field;
+    use core::str::FromStr;
     use rand::Rng;
-    use std::str::FromStr;
 
     #[test]
     fn test_digest_to_fr() {

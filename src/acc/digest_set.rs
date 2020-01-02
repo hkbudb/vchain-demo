@@ -1,9 +1,9 @@
 use super::{field::Fr, utils::digest_to_fr};
 use crate::set::{MultiSet, SetElement};
 use algebra::Field;
+use core::ops::Deref;
 use ff_fft::DensePolynomial;
 use rayon::{self, prelude::*};
-use std::ops::Deref;
 
 #[derive(Debug, Clone, Default)]
 pub struct DigestSet {
