@@ -17,6 +17,12 @@ pub use build::*;
 pub mod query;
 pub use query::*;
 
+pub mod query_result;
+pub use query_result::*;
+
+pub mod historical_query;
+pub use historical_query::*;
+
 pub type IdType = u32;
 pub type SkipLstLvlType = u8;
 

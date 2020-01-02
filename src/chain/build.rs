@@ -1,7 +1,7 @@
 #![allow(clippy::cognitive_complexity)]
 
 use super::*;
-use crate::digest::{concat_digest, Digest, Digestable};
+use crate::digest::{concat_digest, concat_digest_ref, Digest, Digestable};
 use crate::set::MultiSet;
 use algebra::curves::{AffineCurve, ProjectiveCurve};
 use smallvec::smallvec;
@@ -141,7 +141,8 @@ pub fn build_block<'a>(
         let mut hs: Vec<Digest> = Vec::with_capacity(objs.len());
         let mut set_data: MultiSet<SetElementType> = MultiSet::new();
         for obj in &objs {
-            hs.push(obj.to_digest());
+            let h = concat_digest_ref([obj.acc_value.to_digest(), obj.to_digest()].iter());
+            hs.push(h);
             set_data = &set_data | &obj.set_data;
         }
         block_header.data_root = concat_digest(hs.into_iter());
