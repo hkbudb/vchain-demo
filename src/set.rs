@@ -42,41 +42,41 @@ impl<T: SetElement> Deref for MultiSet<T> {
     }
 }
 
-impl<T: SetElement> Add for MultiSet<T> {
-    type Output = Self;
+impl<'a, 'b, T: SetElement> Add<&'a MultiSet<T>> for &'b MultiSet<T> {
+    type Output = MultiSet<T>;
 
-    fn add(self, other: Self) -> Self {
+    fn add(self, other: &'a MultiSet<T>) -> MultiSet<T> {
         let mut data = HashMap::new();
         for (k, v) in self.iter().chain(other.iter()) {
             *data.entry(k.clone()).or_insert(0) += v;
         }
-        Self { inner: data }
+        MultiSet { inner: data }
     }
 }
 
-impl<T: SetElement> BitOr for MultiSet<T> {
-    type Output = Self;
+impl<'a, 'b, T: SetElement> BitOr<&'a MultiSet<T>> for &'b MultiSet<T> {
+    type Output = MultiSet<T>;
 
-    fn bitor(self, other: Self) -> Self {
+    fn bitor(self, other: &'a MultiSet<T>) -> MultiSet<T> {
         let mut data = HashMap::new();
         for k in self.keys().chain(other.keys()) {
             data.entry(k.clone()).or_insert(1);
         }
-        Self { inner: data }
+        MultiSet { inner: data }
     }
 }
 
-impl<T: SetElement> BitAnd for MultiSet<T> {
-    type Output = Self;
+impl<'a, 'b, T: SetElement> BitAnd<&'a MultiSet<T>> for &'b MultiSet<T> {
+    type Output = MultiSet<T>;
 
-    fn bitand(self, other: Self) -> Self {
+    fn bitand(self, other: &'a MultiSet<T>) -> MultiSet<T> {
         let mut data = HashMap::new();
         for k in self.keys() {
             if other.contains_key(k) {
                 data.insert(k.clone(), 1);
             }
         }
-        Self { inner: data }
+        MultiSet { inner: data }
     }
 }
 
@@ -118,7 +118,7 @@ mod tests {
         let s1 = MultiSet::from_vec(vec![1, 1, 2]);
         let s2 = MultiSet::from_vec(vec![2, 2, 3]);
         let s3 = MultiSet::from_tuple_vec(vec![(1, 2), (2, 3), (3, 1)]);
-        assert_eq!(s1 + s2, s3);
+        assert_eq!(&s1 + &s2, s3);
     }
 
     #[test]
@@ -126,7 +126,7 @@ mod tests {
         let s1 = MultiSet::from_vec(vec![1, 1, 2]);
         let s2 = MultiSet::from_vec(vec![2, 2, 3]);
         let s3 = MultiSet::from_tuple_vec(vec![(1, 1), (2, 1), (3, 1)]);
-        assert_eq!(s1 | s2, s3);
+        assert_eq!(&s1 | &s2, s3);
     }
 
     #[test]
@@ -134,6 +134,6 @@ mod tests {
         let s1 = MultiSet::from_vec(vec![1, 1, 2]);
         let s2 = MultiSet::from_vec(vec![2, 2, 3]);
         let s3 = MultiSet::from_tuple_vec(vec![(2, 1)]);
-        assert_eq!(s1 & s2, s3);
+        assert_eq!(&s1 & &s2, s3);
     }
 }

@@ -30,12 +30,13 @@ pub struct Object {
 impl Object {
     pub fn create(obj: &RawObject, param: &Parameter) -> Self {
         let id = OBJECT_ID_CNT.fetch_add(1, Ordering::SeqCst) as IdType;
-        let set_data = obj
+        let set_v = v_data_to_set(&obj.v_data, &param.v_bit_len);
+        let set_w = obj
             .w_data
             .iter()
             .map(|w| SetElementType::W(w.clone()))
-            .collect::<MultiSet<_>>()
-            + v_data_to_set(&obj.v_data, &param.v_bit_len);
+            .collect::<MultiSet<_>>();
+        let set_data = &set_v + &set_w;
         let acc_value = multiset_to_g1(&set_data, param);
         Self {
             id,
