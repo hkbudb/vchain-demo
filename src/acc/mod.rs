@@ -22,7 +22,10 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use utils::{xgcd, FixedBaseCurvePow, FixedBaseScalarPow};
 
-const GS_VEC_LEN: usize = 1000;
+#[cfg(test)]
+const GS_VEC_LEN: usize = 0;
+#[cfg(not(test))]
+const GS_VEC_LEN: usize = 5000;
 
 lazy_static! {
     static ref PUB_Q: Fr = Fr::from_str("173169506511432145374212744878663118934").unwrap();
