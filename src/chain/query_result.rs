@@ -1,12 +1,23 @@
 use super::*;
-use crate::acc::curve::G1Affine;
+use crate::acc::curve::{G1Affine, G1Projective};
 use crate::acc::{Accumulator, AccumulatorProof};
 use crate::digest::{blake2, concat_digest, concat_digest_ref, Digest, Digestable};
 use crate::set::MultiSet;
+use algebra::curves::ProjectiveCurve;
 use core::ops::Deref;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::collections::HashMap;
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub enum VerifyResult {
+    Ok,
+    InvalidSetIdx(usize),
+    InvalidAccIdx(AccProofIdxType),
+    InvalidAccProof(AccProofIdxType),
+    InvalidHash,
+    InvalidMatchObj(IdType),
+}
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ResultObjs(pub HashMap<IdType, Object>);
@@ -37,6 +48,58 @@ pub struct ResultVOAcc<AP: AccumulatorProof> {
 impl<AP: AccumulatorProof> ResultVOAcc<AP> {
     pub fn get_object_acc(&self, proof_idx: AccProofIdxType) -> Option<&G1Affine> {
         Some(&self.object_accs.get(&proof_idx.0)?.get(proof_idx.1)?.0)
+    }
+    pub fn verify(&self) -> VerifyResult {
+        match AP::TYPE {
+            acc::Type::ACC1 => {
+                for (&i, proofs) in self.proofs.iter() {
+                    let query_acc = match self.query_exp_sets.get(i) {
+                        Some(set) => acc::Acc1::cal_acc_g1(set),
+                        None => return VerifyResult::InvalidSetIdx(i),
+                    };
+                    for (j, proof) in proofs.iter().enumerate() {
+                        let acc_proof_idx = (i, j);
+                        let proof = match proof.as_any().downcast_ref::<acc::Acc1Proof>() {
+                            Some(proof) => proof,
+                            None => return VerifyResult::InvalidAccIdx(acc_proof_idx),
+                        };
+                        let obj_acc = match self.get_object_acc(acc_proof_idx) {
+                            Some(acc) => acc,
+                            None => return VerifyResult::InvalidAccIdx(acc_proof_idx),
+                        };
+                        if !proof.verify(obj_acc, &query_acc) {
+                            return VerifyResult::InvalidAccProof(acc_proof_idx);
+                        }
+                    }
+                }
+            }
+            acc::Type::ACC2 => {
+                for (&i, proofs) in self.proofs.iter() {
+                    let query_acc = match self.query_exp_sets.get(i) {
+                        Some(set) => acc::Acc2::cal_acc_g2(set),
+                        None => return VerifyResult::InvalidSetIdx(i),
+                    };
+                    let obj_accs = match self.object_accs.get(&i) {
+                        Some(accs) => accs,
+                        None => return VerifyResult::InvalidSetIdx(i),
+                    };
+                    assert_eq!(proofs.len(), 1);
+                    let acc_proof_idx = (i, 0);
+                    let proof = match proofs[0].as_any().downcast_ref::<acc::Acc2Proof>() {
+                        Some(proof) => proof,
+                        None => return VerifyResult::InvalidAccIdx(acc_proof_idx),
+                    };
+                    let mut g1 = G1Projective::zero();
+                    for obj_acc in obj_accs.iter() {
+                        g1.add_assign_mixed(&obj_acc.0);
+                    }
+                    if !proof.verify(&g1.into_affine(), &query_acc) {
+                        return VerifyResult::InvalidAccProof(acc_proof_idx);
+                    }
+                }
+            }
+        }
+        VerifyResult::Ok
     }
 }
 
