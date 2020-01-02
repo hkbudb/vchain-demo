@@ -1,4 +1,5 @@
 use blake2b_simd::{self, blake2bp};
+use core::fmt;
 use serde::{
     de::{Deserializer, SeqAccess, Visitor},
     ser::{SerializeTupleStruct, Serializer},
@@ -7,8 +8,20 @@ use serde::{
 
 pub const DIGEST_LEN: usize = 32;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Default)]
 pub struct Digest(pub [u8; DIGEST_LEN]);
+
+impl fmt::Display for Digest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(&self.0))
+    }
+}
+
+impl fmt::Debug for Digest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(&self.0))
+    }
+}
 
 // Ref: https://github.com/slowli/hex-buffer-serde
 
@@ -32,7 +45,6 @@ impl<'de> Deserialize<'de> for Digest {
     where
         D: Deserializer<'de>,
     {
-        use core::fmt;
         use serde::de::Error as DeError;
 
         struct HexVisitor;
