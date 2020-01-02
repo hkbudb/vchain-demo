@@ -191,7 +191,7 @@ impl AccumulatorProof for Acc1Proof {
         Acc1::gen_proof(set1, set2)
     }
 
-    fn combine_proof(&mut self, other: &Self) -> anyhow::Result<()> {
+    fn combine_proof(&mut self, _other: &Self) -> anyhow::Result<()> {
         bail!("invalid operation");
     }
 

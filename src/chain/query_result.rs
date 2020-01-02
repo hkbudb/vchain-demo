@@ -15,8 +15,9 @@ pub enum VerifyResult {
     InvalidSetIdx(usize),
     InvalidAccIdx(AccProofIdxType),
     InvalidAccProof(AccProofIdxType),
-    InvalidHash,
     InvalidMatchObj(IdType),
+    InvalidQuery,
+    InvalidHash,
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -107,7 +108,6 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
         &mut self,
         query_exp_set: &MultiSet<SetElementType>,
         query_exp_set_d: &acc::DigestSet,
-        object_set: &MultiSet<SetElementType>,
         object_set_d: &acc::DigestSet,
         object_acc: &G1Affine,
     ) -> Result<AccProofIdxType> {
@@ -181,16 +181,42 @@ impl ResultVOTree {
 pub struct ResultVO<AP: AccumulatorProof> {
     pub vo_t: ResultVOTree,
     pub vo_acc: ResultVOAcc<AP>,
-    pub prev_hash: Digest,
-    pub hash_root: Digest,
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ResultObjsandVO<AP: AccumulatorProof> {
-    pub start_block: IdType,
-    pub end_block: IdType,
     pub res_objs: ResultObjs,
     pub res_vo: ResultVO<AP>,
+}
+
+impl<AP: AccumulatorProof> ResultObjsandVO<AP> {
+    pub fn verify(&self, query: &Query, chain: &impl ReadInterface) -> Result<VerifyResult> {
+        let param = chain.get_parameter()?;
+        let query_exp = query.to_bool_exp(&param.v_bit_len);
+        for (id, obj) in self.res_objs.iter() {
+            if !query_exp.is_match(&obj.set_data) {
+                return Ok(VerifyResult::InvalidMatchObj(*id));
+            }
+        }
+        if self.res_vo.vo_acc.query_exp_sets != query_exp.inner {
+            return Ok(VerifyResult::InvalidQuery);
+        }
+        match self.res_vo.vo_acc.verify() {
+            VerifyResult::Ok => {}
+            x => return Ok(x),
+        }
+        let prev_hash = chain.read_block_header(query.start_block)?.prev_hash;
+        let hash_root = chain.read_block_header(query.end_block)?.to_digest();
+        if self
+            .res_vo
+            .vo_t
+            .compute_digest(&self.res_objs, &self.res_vo.vo_acc, &prev_hash)
+            != Some(hash_root)
+        {
+            return Ok(VerifyResult::InvalidHash);
+        }
+        todo!();
+    }
 }
 
 pub mod vo {
@@ -206,7 +232,7 @@ pub mod vo {
             Self { obj_id: o.id }
         }
         pub fn compute_digest<AP: AccumulatorProof>(
-            &self,
+            self,
             res_objs: &ResultObjs,
             _vo_acc: &ResultVOAcc<AP>,
         ) -> Option<Digest> {
@@ -352,7 +378,7 @@ pub mod vo {
             Self { obj_id: o.id }
         }
         pub fn compute_digest<AP: AccumulatorProof>(
-            &self,
+            self,
             res_objs: &ResultObjs,
             _vo_acc: &ResultVOAcc<AP>,
         ) -> Option<Digest> {
