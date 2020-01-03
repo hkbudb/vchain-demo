@@ -201,9 +201,11 @@ pub struct OverallResult<AP: AccumulatorProof> {
 impl<AP: AccumulatorProof> OverallResult<AP> {
     pub fn verify(&self, chain: &impl ReadInterface) -> Result<(VerifyResult, Duration)> {
         info!("verify result");
+        let cpu_timer = howlong::ProcessCPUTimer::new();
         let timer = howlong::HighResolutionTimer::new();
         let res = self.inner_verify(chain)?;
         let time = timer.elapsed();
+        info!("used time: {}", cpu_timer.elapsed());
         Ok((res, time))
     }
 
