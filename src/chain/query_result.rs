@@ -549,7 +549,7 @@ pub mod vo {
                 Self::NoMatchIntraNonLeaf(n) => n.compute_digest(res_objs, vo_acc),
                 Self::MatchIntraLeaf(n) => n.compute_digest(res_objs, vo_acc),
                 Self::IntraNonLeaf(n) => n.compute_digest(res_objs, vo_acc),
-                Self::Empty => return None,
+                Self::Empty => None,
             }
         }
         pub fn compute_stats(&self, stats: &mut VOStatistic) {

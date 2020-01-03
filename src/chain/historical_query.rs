@@ -46,11 +46,9 @@ pub fn historical_query<AP: AccumulatorProof + Serialize>(
 
             for (lvl, &skip_list_id) in blk_data.skip_list_ids.iter().enumerate().rev() {
                 let jmp_node = chain.read_skip_list_node(skip_list_id)?;
-                if jmp_level.is_some() {
-                    vo_skip
-                        .sub_nodes
-                        .push(vo::NoJumpNode::create(&jmp_node).into_jump_or_no_jump_node());
-                } else if q.start_block + skipped_blocks_num(lvl as SkipLstLvlType) > block_id {
+                if jmp_level.is_some()
+                    || q.start_block + skipped_blocks_num(lvl as SkipLstLvlType) > block_id
+                {
                     vo_skip
                         .sub_nodes
                         .push(vo::NoJumpNode::create(&jmp_node).into_jump_or_no_jump_node());
