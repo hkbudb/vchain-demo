@@ -171,6 +171,10 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
             }
         }
     }
+
+    pub fn compute_stats(&self, stats: &mut VOStatistic) {
+        stats.num_of_acc_proofs = self.proofs.values().map(|v| v.len() as u64).sum();
+    }
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -193,6 +197,12 @@ impl ResultVOTree {
         }
         Some(hash_root)
     }
+
+    pub fn compute_stats(&self, stats: &mut VOStatistic) {
+        for sub_node in &self.0 {
+            sub_node.compute_stats(stats);
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -210,6 +220,19 @@ impl<AP: AccumulatorProof> ResultVO<AP> {
             vo_acc: ResultVOAcc::<AP>::new(),
         }
     }
+    pub fn compute_stats(&self, stats: &mut VOStatistic) {
+        self.vo_t.compute_stats(stats);
+        self.vo_acc.compute_stats(stats);
+    }
+}
+
+#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct VOStatistic {
+    num_of_acc_proofs: u64,
+    num_of_objs: u64,
+    num_of_mismatch_objs: u64,
+    num_of_mismatch_intra_nodes: u64,
+    num_of_mismatch_inter_nodes: u64,
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -222,9 +245,10 @@ pub struct OverallResult<AP: AccumulatorProof> {
     pub query_time_in_ms: u128,
     pub v_bit_len: Vec<u8>,
     pub vo_size: u64,
+    pub vo_stats: VOStatistic,
 }
 
-impl<AP: AccumulatorProof> OverallResult<AP> {
+impl<AP: AccumulatorProof + Serialize> OverallResult<AP> {
     pub fn verify(&self, chain: &impl ReadInterface) -> Result<(VerifyResult, Duration)> {
         info!("verify result");
         let cpu_timer = howlong::ProcessCPUTimer::new();
@@ -261,6 +285,13 @@ impl<AP: AccumulatorProof> OverallResult<AP> {
         }
         Ok(VerifyResult::Ok)
     }
+
+    pub fn compute_stats(&mut self) -> Result<()> {
+        self.vo_size = bincode::serialize(&self.res_vo)?.len() as u64;
+        self.vo_stats = Default::default();
+        self.res_vo.compute_stats(&mut self.vo_stats);
+        Ok(())
+    }
 }
 
 pub mod vo {
@@ -285,10 +316,14 @@ pub mod vo {
                 [obj.acc_value.to_digest(), obj.to_digest()].iter(),
             ))
         }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            stats.num_of_objs += 1;
+        }
     }
 
     #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
     pub struct NoMatchObjNode {
+        pub obj_id: IdType,
         pub obj_hash: Digest,
         pub proof_idx: AccProofIdxType,
     }
@@ -296,6 +331,7 @@ pub mod vo {
     impl NoMatchObjNode {
         pub fn create(o: &Object, proof_idx: AccProofIdxType) -> Self {
             Self {
+                obj_id: o.id,
                 obj_hash: o.to_digest(),
                 proof_idx,
             }
@@ -309,6 +345,9 @@ pub mod vo {
             Some(concat_digest_ref(
                 [acc_value.to_digest(), self.obj_hash].iter(),
             ))
+        }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            stats.num_of_mismatch_objs += 1;
         }
     }
 
@@ -327,6 +366,12 @@ pub mod vo {
             match self {
                 Self::Match(n) => n.compute_digest(res_objs, vo_acc),
                 Self::NoMatch(n) => n.compute_digest(res_objs, vo_acc),
+            }
+        }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            match self {
+                Self::Match(n) => n.compute_stats(stats),
+                Self::NoMatch(n) => n.compute_stats(stats),
             }
         }
     }
@@ -360,10 +405,16 @@ pub mod vo {
             }
             Some(Digest::from(state.finalize()))
         }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            for sub_node in &self.sub_nodes {
+                sub_node.compute_stats(stats);
+            }
+        }
     }
 
     #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
     pub struct NoMatchIntraNonLeaf {
+        pub id: IdType,
         pub child_hash_digest: Digest,
         pub proof_idx: AccProofIdxType,
     }
@@ -371,6 +422,7 @@ pub mod vo {
     impl NoMatchIntraNonLeaf {
         pub fn create(n: &IntraIndexNonLeaf, proof_idx: AccProofIdxType) -> Self {
             Self {
+                id: n.id,
                 child_hash_digest: n.child_hash_digest,
                 proof_idx,
             }
@@ -385,10 +437,14 @@ pub mod vo {
                 [acc_value.to_digest(), self.child_hash_digest].iter(),
             ))
         }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            stats.num_of_mismatch_intra_nodes += 1;
+        }
     }
 
     #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
     pub struct NoMatchIntraLeaf {
+        pub id: IdType,
         pub obj_hash: Digest,
         pub proof_idx: AccProofIdxType,
     }
@@ -396,6 +452,7 @@ pub mod vo {
     impl NoMatchIntraLeaf {
         pub fn create(n: &IntraIndexLeaf, proof_idx: AccProofIdxType) -> Self {
             Self {
+                id: n.id,
                 obj_hash: n.obj_hash,
                 proof_idx,
             }
@@ -410,16 +467,23 @@ pub mod vo {
                 [acc_value.to_digest(), self.obj_hash].iter(),
             ))
         }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            stats.num_of_mismatch_intra_nodes += 1;
+        }
     }
 
     #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
     pub struct MatchIntraLeaf {
+        pub id: IdType,
         pub obj_id: IdType,
     }
 
     impl MatchIntraLeaf {
-        pub fn create(o: &Object) -> Self {
-            Self { obj_id: o.id }
+        pub fn create(n: &IntraIndexLeaf) -> Self {
+            Self {
+                id: n.id,
+                obj_id: n.obj_id,
+            }
         }
         pub fn compute_digest<AP: AccumulatorProof>(
             self,
@@ -430,6 +494,9 @@ pub mod vo {
             Some(concat_digest_ref(
                 [obj.acc_value.to_digest(), obj.to_digest()].iter(),
             ))
+        }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            stats.num_of_objs += 1;
         }
     }
 
@@ -454,10 +521,19 @@ pub mod vo {
                 Self::IntraNonLeaf(n) => n.compute_digest(res_objs, vo_acc),
             }
         }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            match self {
+                Self::NoMatchIntraLeaf(n) => n.compute_stats(stats),
+                Self::NoMatchIntraNonLeaf(n) => n.compute_stats(stats),
+                Self::MatchIntraLeaf(n) => n.compute_stats(stats),
+                Self::IntraNonLeaf(n) => n.compute_stats(stats),
+            }
+        }
     }
 
     #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
     pub struct IntraNonLeaf {
+        pub id: IdType,
         #[serde(with = "crate::acc::serde_impl")]
         pub acc_value: G1Affine,
         pub children: SmallVec<[IntraNode; 2]>,
@@ -466,6 +542,7 @@ pub mod vo {
     impl IntraNonLeaf {
         pub fn create(n: &IntraIndexNonLeaf) -> Self {
             Self {
+                id: n.id,
                 acc_value: n.acc_value,
                 children: SmallVec::new(),
             }
@@ -483,6 +560,11 @@ pub mod vo {
             Some(concat_digest_ref(
                 [self.acc_value.to_digest(), child_hash_digest].iter(),
             ))
+        }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            for child in &self.children {
+                child.compute_stats(stats);
+            }
         }
     }
 
@@ -510,16 +592,23 @@ pub mod vo {
             }
             Some(Digest::from(state.finalize()))
         }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            self.sub_node.compute_stats(stats);
+        }
     }
 
     #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
     pub struct JumpNode {
+        pub id: IdType,
         pub proof_idx: AccProofIdxType,
     }
 
     impl JumpNode {
-        pub fn create(proof_idx: AccProofIdxType) -> Self {
-            Self { proof_idx }
+        pub fn create(n: &SkipListNode, proof_idx: AccProofIdxType) -> Self {
+            Self {
+                id: n.id,
+                proof_idx,
+            }
         }
         pub fn compute_digest<AP: AccumulatorProof>(
             &self,
@@ -532,16 +621,23 @@ pub mod vo {
                 [acc_value.to_digest(), *prev_hash].iter(),
             ))
         }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            stats.num_of_mismatch_inter_nodes += 1;
+        }
     }
 
     #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
     pub struct NoJumpNode {
+        pub id: IdType,
         pub digest: Digest,
     }
 
     impl NoJumpNode {
         pub fn create(n: &SkipListNode) -> Self {
-            Self { digest: n.digest }
+            Self {
+                id: n.id,
+                digest: n.digest,
+            }
         }
         pub fn compute_digest<AP: AccumulatorProof>(
             &self,
@@ -551,6 +647,7 @@ pub mod vo {
         ) -> Option<Digest> {
             Some(self.digest)
         }
+        pub fn compute_stats(&self, _stats: &mut VOStatistic) {}
     }
 
     #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -569,6 +666,12 @@ pub mod vo {
             match self {
                 Self::Jump(n) => n.compute_digest(res_objs, vo_acc, prev_hash),
                 Self::NoJump(n) => n.compute_digest(res_objs, vo_acc, prev_hash),
+            }
+        }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            match self {
+                Self::Jump(n) => n.compute_stats(stats),
+                Self::NoJump(n) => n.compute_stats(stats),
             }
         }
     }
@@ -600,6 +703,11 @@ pub mod vo {
             state.update(&skip_list_root.0);
             Some(Digest::from(state.finalize()))
         }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            for sub_node in &self.sub_nodes {
+                sub_node.compute_stats(stats);
+            }
+        }
     }
 
     #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -620,6 +728,13 @@ pub mod vo {
                 Self::FlatBlkNode(n) => n.compute_digest(res_objs, vo_acc, prev_hash),
                 Self::BlkNode(n) => n.compute_digest(res_objs, vo_acc, prev_hash),
                 Self::SkipListRoot(n) => n.compute_digest(res_objs, vo_acc, prev_hash),
+            }
+        }
+        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+            match self {
+                Self::FlatBlkNode(n) => n.compute_stats(stats),
+                Self::BlkNode(n) => n.compute_stats(stats),
+                Self::SkipListRoot(n) => n.compute_stats(stats),
             }
         }
     }

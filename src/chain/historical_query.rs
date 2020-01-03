@@ -4,7 +4,7 @@ use super::*;
 use crate::acc::AccumulatorProof;
 use anyhow::Result;
 
-pub fn historical_query<AP: AccumulatorProof>(
+pub fn historical_query<AP: AccumulatorProof + Serialize>(
     q: &Query,
     chain: &impl ReadInterface,
 ) -> Result<OverallResult<AP>> {
@@ -20,9 +20,11 @@ pub fn historical_query<AP: AccumulatorProof>(
         query_time_in_ms: 0,
         v_bit_len: param.v_bit_len,
         vo_size: 0,
+        vo_stats: VOStatistic::default(),
     };
 
     res.query_time_in_ms = timer.elapsed().as_millis();
+    res.compute_stats()?;
     info!("used time: {}", cpu_timer.elapsed());
     Ok(res)
 }
