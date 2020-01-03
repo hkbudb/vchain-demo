@@ -167,12 +167,11 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
                 acc_ptr.push(object_acc);
                 if proof_ptr.is_empty() {
                     proof_ptr.push(proof);
-                    Ok((query_exp_set_idx, 0))
                 } else {
                     debug_assert_eq!(proof_ptr.len(), 1);
                     proof_ptr[0].combine_proof(&proof)?;
-                    Ok((query_exp_set_idx, acc_ptr.len() - 1))
                 }
+                Ok((query_exp_set_idx, acc_ptr.len() - 1))
             }
         }
     }

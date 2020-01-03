@@ -134,8 +134,13 @@ const TEST_DATA_2: &str = r#"
 20 [ 1 ] { b }
 "#;
 
+fn init_logger() {
+    let _ = env_logger::builder().is_test(true).try_init();
+}
+
 #[test]
 fn test_data1_acc1_flat() {
+    init_logger();
     let mut chain = FakeInMemChain::new();
     let param = Parameter {
         v_bit_len: vec![3],
@@ -162,6 +167,7 @@ fn test_data1_acc1_flat() {
 
 #[test]
 fn test_data1_acc1() {
+    init_logger();
     let mut chain = FakeInMemChain::new();
     let param = Parameter {
         v_bit_len: vec![3],
@@ -188,6 +194,7 @@ fn test_data1_acc1() {
 
 #[test]
 fn test_data1_acc2_flat() {
+    init_logger();
     let mut chain = FakeInMemChain::new();
     let param = Parameter {
         v_bit_len: vec![3],
@@ -214,6 +221,7 @@ fn test_data1_acc2_flat() {
 
 #[test]
 fn test_data1_acc2() {
+    init_logger();
     let mut chain = FakeInMemChain::new();
     let param = Parameter {
         v_bit_len: vec![3],
@@ -240,6 +248,7 @@ fn test_data1_acc2() {
 
 #[test]
 fn test_data2_acc2() {
+    init_logger();
     let mut chain = FakeInMemChain::new();
     let param = Parameter {
         v_bit_len: vec![3],
@@ -266,6 +275,7 @@ fn test_data2_acc2() {
 
 #[test]
 fn test_data2_acc2_skip_list() {
+    init_logger();
     let mut chain = FakeInMemChain::new();
     let param = Parameter {
         v_bit_len: vec![3],
@@ -292,6 +302,7 @@ fn test_data2_acc2_skip_list() {
 
 #[test]
 fn test_data2_acc1_skip_list() {
+    init_logger();
     let mut chain = FakeInMemChain::new();
     let param = Parameter {
         v_bit_len: vec![3],

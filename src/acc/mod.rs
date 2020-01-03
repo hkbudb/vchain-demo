@@ -430,4 +430,24 @@ mod tests {
         assert!(proof.verify(&acc1, &acc2));
         assert!(Acc2::gen_proof(&set1, &set3).is_err());
     }
+
+    #[test]
+    fn test_acc2_proof_sum() {
+        init_logger();
+        let set1 = DigestSet::new(&MultiSet::from_vec(vec![1, 2, 3]));
+        let set2 = DigestSet::new(&MultiSet::from_vec(vec![4, 5, 6]));
+        let set3 = DigestSet::new(&MultiSet::from_vec(vec![7, 8, 9]));
+        let mut proof1 = Acc2::gen_proof(&set1, &set2).unwrap();
+        let proof2 = Acc2::gen_proof(&set1, &set3).unwrap();
+        proof1.combine_proof(&proof2).unwrap();
+        let acc1 = Acc2::cal_acc_g1_sk_d(&set1);
+        let acc2 = Acc2::cal_acc_g2_sk_d(&set2);
+        let acc3 = Acc2::cal_acc_g2_sk_d(&set3);
+        let acc4 = {
+            let mut acc = acc2.into_projective();
+            acc.add_assign_mixed(&acc3);
+            acc.into_affine()
+        };
+        assert!(proof1.verify(&acc1, &acc4));
+    }
 }
