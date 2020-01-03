@@ -272,9 +272,6 @@ impl<AP: AccumulatorProof + Serialize> OverallResult<AP> {
                 return Ok(VerifyResult::InvalidMatchObj(*id));
             }
         }
-        if self.res_vo.vo_acc.query_exp_sets.len() != query_exp.inner.len() {
-            return Ok(VerifyResult::InvalidQuery);
-        }
         if !self
             .res_vo
             .vo_acc
