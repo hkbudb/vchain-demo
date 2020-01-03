@@ -5,6 +5,7 @@ use crate::digest::{blake2, concat_digest, concat_digest_ref, Digest, Digestable
 use crate::set::MultiSet;
 use algebra::curves::ProjectiveCurve;
 use core::ops::Deref;
+use howlong::Duration;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::collections::HashMap;
@@ -179,20 +180,35 @@ impl ResultVOTree {
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ResultVO<AP: AccumulatorProof> {
+    #[serde(rename = "tree")]
     pub vo_t: ResultVOTree,
+    #[serde(rename = "acc")]
     pub vo_acc: ResultVOAcc<AP>,
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ResultObjsandVO<AP: AccumulatorProof> {
+pub struct OverallResult<AP: AccumulatorProof> {
+    #[serde(rename = "result")]
     pub res_objs: ResultObjs,
+    #[serde(rename = "vo")]
     pub res_vo: ResultVO<AP>,
+    pub query: Query,
+    pub query_time_in_ms: u64,
+    pub v_bit_len: Vec<u8>,
+    pub vo_size: u64,
 }
 
-impl<AP: AccumulatorProof> ResultObjsandVO<AP> {
-    pub fn verify(&self, query: &Query, chain: &impl ReadInterface) -> Result<VerifyResult> {
-        let param = chain.get_parameter()?;
-        let query_exp = query.to_bool_exp(&param.v_bit_len);
+impl<AP: AccumulatorProof> OverallResult<AP> {
+    pub fn verify(&self, chain: &impl ReadInterface) -> Result<(VerifyResult, Duration)> {
+        info!("verify result");
+        let timer = howlong::HighResolutionTimer::new();
+        let res = self.inner_verify(chain)?;
+        let time = timer.elapsed();
+        Ok((res, time))
+    }
+
+    fn inner_verify(&self, chain: &impl ReadInterface) -> Result<VerifyResult> {
+        let query_exp = self.query.to_bool_exp(&self.v_bit_len);
         for (id, obj) in self.res_objs.iter() {
             if !query_exp.is_match(&obj.set_data) {
                 return Ok(VerifyResult::InvalidMatchObj(*id));
@@ -205,8 +221,8 @@ impl<AP: AccumulatorProof> ResultObjsandVO<AP> {
             VerifyResult::Ok => {}
             x => return Ok(x),
         }
-        let prev_hash = chain.read_block_header(query.start_block)?.prev_hash;
-        let hash_root = chain.read_block_header(query.end_block)?.to_digest();
+        let prev_hash = chain.read_block_header(self.query.start_block)?.prev_hash;
+        let hash_root = chain.read_block_header(self.query.end_block)?.to_digest();
         if self
             .res_vo
             .vo_t
@@ -215,7 +231,7 @@ impl<AP: AccumulatorProof> ResultObjsandVO<AP> {
         {
             return Ok(VerifyResult::InvalidHash);
         }
-        todo!();
+        Ok(VerifyResult::Ok)
     }
 }
 
