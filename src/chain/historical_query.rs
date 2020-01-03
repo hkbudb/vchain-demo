@@ -50,6 +50,10 @@ pub fn historical_query<AP: AccumulatorProof + Serialize>(
                     vo_skip
                         .sub_nodes
                         .push(vo::NoJumpNode::create(&jmp_node).into_jump_or_no_jump_node());
+                } else if q.start_block + skipped_blocks_num(lvl as SkipLstLvlType) > block_id {
+                    vo_skip
+                        .sub_nodes
+                        .push(vo::NoJumpNode::create(&jmp_node).into_jump_or_no_jump_node());
                 } else {
                     let mismatch_idx = query_exp.mismatch_idx(&jmp_node.set_data);
                     if let Some(mismatch_idx) = mismatch_idx {
