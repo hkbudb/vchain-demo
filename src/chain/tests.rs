@@ -289,3 +289,29 @@ fn test_data2_acc2_skip_list() {
     assert_eq!(res.vo_stats.num_of_objs, 4);
     assert_eq!(res.verify(&chain).unwrap().0, VerifyResult::Ok);
 }
+
+#[test]
+fn test_data2_acc1_skip_list() {
+    let mut chain = FakeInMemChain::new();
+    let param = Parameter {
+        v_bit_len: vec![3],
+        acc_type: acc::Type::ACC1,
+        use_sk: true,
+        intra_index: true,
+        skip_list_max_level: 2,
+    };
+    chain.build_chain(TEST_DATA_2, &param).unwrap();
+    let query = Query::from_json(&json!({
+        "start_block": 1,
+        "end_block": 20,
+        "range": [
+            [1],
+            [1],
+        ],
+        "bool": [["a"]],
+    }))
+    .unwrap();
+    let res: OverallResult<acc::Acc1Proof> = historical_query(&query, &chain).unwrap();
+    assert_eq!(res.vo_stats.num_of_objs, 4);
+    assert_eq!(res.verify(&chain).unwrap().0, VerifyResult::Ok);
+}
