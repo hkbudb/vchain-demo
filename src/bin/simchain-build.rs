@@ -65,11 +65,14 @@ fn build_chain(data_path: &Path, out_path: &Path, param: &Parameter) -> Result<(
     info!("param: {:?}", param);
 
     let raw_objs = load_raw_obj_from_file(data_path)?;
-    let mut chain = SimChain::new(out_path)?;
+    let mut chain = SimChain::create(out_path, param.clone())?;
     chain.set_parameter(param.clone())?;
 
     let mut prev_hash = Digest::default();
     for (id, objs) in raw_objs.iter() {
+        if id % 10_000 == 0 {
+            info!("build blk #{}", id);
+        }
         let header = build_block(*id, prev_hash, objs.iter(), &mut chain)?;
         prev_hash = header.to_digest();
     }

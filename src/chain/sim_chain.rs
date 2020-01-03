@@ -1,6 +1,6 @@
 use super::*;
 use anyhow::Context;
-use rocksdb::DB;
+use rocksdb::{self, DB};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -15,9 +15,28 @@ pub struct SimChain {
 }
 
 impl SimChain {
-    pub fn new(path: &Path) -> Result<Self> {
-        info!("open db at {:?}", path);
+    pub fn create(path: &Path, param: Parameter) -> Result<Self> {
+        info!("create db at {:?}", path);
         fs::create_dir_all(path).context(format!("failed to create dir {:?}", path))?;
+        fs::write(
+            path.join("param.json"),
+            serde_json::to_string_pretty(&param)?,
+        )?;
+        let mut opts = rocksdb::Options::default();
+        opts.create_if_missing(true);
+        Ok(Self {
+            root_path: path.to_owned(),
+            param: param,
+            block_header_db: DB::open(&opts, path.join("blk_header.db"))?,
+            block_data_db: DB::open(&opts, path.join("blk_data.db"))?,
+            intra_index_db: DB::open(&opts, path.join("intra_index.db"))?,
+            skip_list_db: DB::open(&opts, path.join("skiplist.db"))?,
+            obj_db: DB::open(&opts, path.join("obj.db"))?,
+        })
+    }
+
+    pub fn open(path: &Path) -> Result<Self> {
+        info!("open db at {:?}", path);
         Ok(Self {
             root_path: path.to_owned(),
             param: serde_json::from_str::<Parameter>(&fs::read_to_string(
@@ -30,7 +49,6 @@ impl SimChain {
             obj_db: DB::open_default(path.join("obj.db"))?,
         })
     }
-
 }
 
 impl ReadInterface for SimChain {
