@@ -6,6 +6,7 @@ use crate::set::MultiSet;
 use algebra::curves::ProjectiveCurve;
 use core::ops::Deref;
 use howlong::Duration;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::collections::HashMap;
@@ -27,6 +28,10 @@ pub struct ResultObjs(pub HashMap<IdType, Object>);
 impl ResultObjs {
     pub fn new() -> Self {
         Self(HashMap::new())
+    }
+
+    pub fn insert(&mut self, obj: Object) {
+        self.0.insert(obj.id, obj);
     }
 }
 
@@ -228,11 +233,11 @@ impl<AP: AccumulatorProof> ResultVO<AP> {
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct VOStatistic {
-    num_of_acc_proofs: u64,
-    num_of_objs: u64,
-    num_of_mismatch_objs: u64,
-    num_of_mismatch_intra_nodes: u64,
-    num_of_mismatch_inter_nodes: u64,
+    pub num_of_acc_proofs: u64,
+    pub num_of_objs: u64,
+    pub num_of_mismatch_objs: u64,
+    pub num_of_mismatch_intra_nodes: u64,
+    pub num_of_mismatch_inter_nodes: u64,
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -267,7 +272,16 @@ impl<AP: AccumulatorProof + Serialize> OverallResult<AP> {
                 return Ok(VerifyResult::InvalidMatchObj(*id));
             }
         }
-        if self.res_vo.vo_acc.query_exp_sets != query_exp.inner {
+        if self.res_vo.vo_acc.query_exp_sets.len() != query_exp.inner.len() {
+            return Ok(VerifyResult::InvalidQuery);
+        }
+        if !self
+            .res_vo
+            .vo_acc
+            .query_exp_sets
+            .par_iter()
+            .all(|s1| query_exp.inner.iter().any(|s2| s1 == s2))
+        {
             return Ok(VerifyResult::InvalidQuery);
         }
         match self.res_vo.vo_acc.verify() {
@@ -317,7 +331,10 @@ pub mod vo {
                 [obj.acc_value.to_digest(), obj.to_digest()].iter(),
             ))
         }
-        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+        pub fn into_obj_node(self) -> ObjNode {
+            ObjNode::Match(Box::new(self))
+        }
+        pub fn compute_stats(self, stats: &mut VOStatistic) {
             stats.num_of_objs += 1;
         }
     }
@@ -337,6 +354,9 @@ pub mod vo {
                 proof_idx,
             }
         }
+        pub fn into_obj_node(self) -> ObjNode {
+            ObjNode::NoMatch(Box::new(self))
+        }
         pub fn compute_digest<AP: AccumulatorProof>(
             &self,
             _res_objs: &ResultObjs,
@@ -352,10 +372,10 @@ pub mod vo {
         }
     }
 
-    #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
     pub enum ObjNode {
-        Match(MatchObjNode),
-        NoMatch(NoMatchObjNode),
+        Match(Box<MatchObjNode>),
+        NoMatch(Box<NoMatchObjNode>),
     }
 
     impl ObjNode {
@@ -406,6 +426,9 @@ pub mod vo {
             }
             Some(Digest::from(state.finalize()))
         }
+        pub fn into_result_vo_node(self) -> ResultVONode {
+            ResultVONode::FlatBlkNode(Box::new(self))
+        }
         pub fn compute_stats(&self, stats: &mut VOStatistic) {
             for sub_node in &self.sub_nodes {
                 sub_node.compute_stats(stats);
@@ -427,6 +450,9 @@ pub mod vo {
                 child_hash_digest: n.child_hash_digest,
                 proof_idx,
             }
+        }
+        pub fn into_intra_node(self) -> IntraNode {
+            IntraNode::NoMatchIntraNonLeaf(Box::new(self))
         }
         pub fn compute_digest<AP: AccumulatorProof>(
             &self,
@@ -458,6 +484,9 @@ pub mod vo {
                 proof_idx,
             }
         }
+        pub fn into_intra_node(self) -> IntraNode {
+            IntraNode::NoMatchIntraLeaf(Box::new(self))
+        }
         pub fn compute_digest<AP: AccumulatorProof>(
             &self,
             _res_objs: &ResultObjs,
@@ -486,6 +515,9 @@ pub mod vo {
                 obj_id: n.obj_id,
             }
         }
+        pub fn into_intra_node(self) -> IntraNode {
+            IntraNode::MatchIntraLeaf(Box::new(self))
+        }
         pub fn compute_digest<AP: AccumulatorProof>(
             self,
             res_objs: &ResultObjs,
@@ -496,7 +528,7 @@ pub mod vo {
                 [obj.acc_value.to_digest(), obj.to_digest()].iter(),
             ))
         }
-        pub fn compute_stats(&self, stats: &mut VOStatistic) {
+        pub fn compute_stats(self, stats: &mut VOStatistic) {
             stats.num_of_objs += 1;
         }
     }
@@ -507,6 +539,7 @@ pub mod vo {
         NoMatchIntraNonLeaf(Box<NoMatchIntraNonLeaf>),
         MatchIntraLeaf(Box<MatchIntraLeaf>),
         IntraNonLeaf(Box<IntraNonLeaf>),
+        Empty,
     }
 
     impl IntraNode {
@@ -520,6 +553,7 @@ pub mod vo {
                 Self::NoMatchIntraNonLeaf(n) => n.compute_digest(res_objs, vo_acc),
                 Self::MatchIntraLeaf(n) => n.compute_digest(res_objs, vo_acc),
                 Self::IntraNonLeaf(n) => n.compute_digest(res_objs, vo_acc),
+                Self::Empty => return None,
             }
         }
         pub fn compute_stats(&self, stats: &mut VOStatistic) {
@@ -528,6 +562,7 @@ pub mod vo {
                 Self::NoMatchIntraNonLeaf(n) => n.compute_stats(stats),
                 Self::MatchIntraLeaf(n) => n.compute_stats(stats),
                 Self::IntraNonLeaf(n) => n.compute_stats(stats),
+                Self::Empty => {}
             }
         }
     }
@@ -547,6 +582,9 @@ pub mod vo {
                 acc_value: n.acc_value,
                 children: SmallVec::new(),
             }
+        }
+        pub fn into_intra_node(self) -> IntraNode {
+            IntraNode::IntraNonLeaf(Box::new(self))
         }
         pub fn compute_digest<AP: AccumulatorProof>(
             &self,
@@ -593,6 +631,9 @@ pub mod vo {
             }
             Some(Digest::from(state.finalize()))
         }
+        pub fn into_result_vo_node(self) -> ResultVONode {
+            ResultVONode::BlkNode(Box::new(self))
+        }
         pub fn compute_stats(&self, stats: &mut VOStatistic) {
             self.sub_node.compute_stats(stats);
         }
@@ -622,6 +663,9 @@ pub mod vo {
                 [acc_value.to_digest(), *prev_hash].iter(),
             ))
         }
+        pub fn into_jump_or_no_jump_node(self) -> JumpOrNoJumpNode {
+            JumpOrNoJumpNode::Jump(Box::new(self))
+        }
         pub fn compute_stats(&self, stats: &mut VOStatistic) {
             stats.num_of_mismatch_inter_nodes += 1;
         }
@@ -647,6 +691,9 @@ pub mod vo {
             _prev_hash: &Digest,
         ) -> Option<Digest> {
             Some(self.digest)
+        }
+        pub fn into_jump_or_no_jump_node(self) -> JumpOrNoJumpNode {
+            JumpOrNoJumpNode::NoJump(Box::new(self))
         }
         pub fn compute_stats(&self, _stats: &mut VOStatistic) {}
     }
@@ -704,6 +751,9 @@ pub mod vo {
             state.update(&skip_list_root.0);
             Some(Digest::from(state.finalize()))
         }
+        pub fn into_result_vo_node(self) -> ResultVONode {
+            ResultVONode::SkipListRoot(Box::new(self))
+        }
         pub fn compute_stats(&self, stats: &mut VOStatistic) {
             for sub_node in &self.sub_nodes {
                 sub_node.compute_stats(stats);
@@ -713,9 +763,9 @@ pub mod vo {
 
     #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
     pub enum ResultVONode {
-        FlatBlkNode(FlatBlkNode),
-        BlkNode(BlkNode),
-        SkipListRoot(SkipListRoot),
+        FlatBlkNode(Box<FlatBlkNode>),
+        BlkNode(Box<BlkNode>),
+        SkipListRoot(Box<SkipListRoot>),
     }
 
     impl ResultVONode {

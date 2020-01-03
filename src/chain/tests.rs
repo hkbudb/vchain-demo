@@ -2,6 +2,7 @@ use super::*;
 use crate::acc;
 use crate::digest::{Digest, Digestable};
 use anyhow::Context;
+use serde_json::json;
 use std::collections::HashMap;
 
 #[derive(Debug, Default)]
@@ -144,6 +145,19 @@ fn test_data1_acc1_flat() {
         skip_list_max_level: 0,
     };
     chain.build_chain(TEST_DATA_1, &param).unwrap();
+    let query = Query::from_json(&json!({
+        "start_block": 1,
+        "end_block": 2,
+        "range": [
+            [1],
+            [1],
+        ],
+        "bool": [["a"]],
+    }))
+    .unwrap();
+    let res: OverallResult<acc::Acc1Proof> = historical_query(&query, &chain).unwrap();
+    assert_eq!(res.vo_stats.num_of_objs, 1);
+    assert_eq!(res.verify(&chain).unwrap().0, VerifyResult::Ok);
 }
 
 #[test]
@@ -157,6 +171,97 @@ fn test_data1_acc1() {
         skip_list_max_level: 0,
     };
     chain.build_chain(TEST_DATA_1, &param).unwrap();
+    let query = Query::from_json(&json!({
+        "start_block": 1,
+        "end_block": 2,
+        "range": [
+            [1],
+            [1],
+        ],
+        "bool": [["a"]],
+    }))
+    .unwrap();
+    let res: OverallResult<acc::Acc1Proof> = historical_query(&query, &chain).unwrap();
+    assert_eq!(res.vo_stats.num_of_objs, 1);
+    assert_eq!(res.verify(&chain).unwrap().0, VerifyResult::Ok);
+}
+
+#[test]
+fn test_data1_acc2_flat() {
+    let mut chain = FakeInMemChain::new();
+    let param = Parameter {
+        v_bit_len: vec![3],
+        acc_type: acc::Type::ACC2,
+        use_sk: true,
+        intra_index: false,
+        skip_list_max_level: 0,
+    };
+    chain.build_chain(TEST_DATA_1, &param).unwrap();
+    let query = Query::from_json(&json!({
+        "start_block": 1,
+        "end_block": 2,
+        "range": [
+            [1],
+            [1],
+        ],
+        "bool": [["a"]],
+    }))
+    .unwrap();
+    let res: OverallResult<acc::Acc2Proof> = historical_query(&query, &chain).unwrap();
+    assert_eq!(res.vo_stats.num_of_objs, 1);
+    assert_eq!(res.verify(&chain).unwrap().0, VerifyResult::Ok);
+}
+
+#[test]
+fn test_data1_acc2() {
+    let mut chain = FakeInMemChain::new();
+    let param = Parameter {
+        v_bit_len: vec![3],
+        acc_type: acc::Type::ACC2,
+        use_sk: true,
+        intra_index: true,
+        skip_list_max_level: 0,
+    };
+    chain.build_chain(TEST_DATA_1, &param).unwrap();
+    let query = Query::from_json(&json!({
+        "start_block": 1,
+        "end_block": 2,
+        "range": [
+            [1],
+            [1],
+        ],
+        "bool": [["a"]],
+    }))
+    .unwrap();
+    let res: OverallResult<acc::Acc2Proof> = historical_query(&query, &chain).unwrap();
+    assert_eq!(res.vo_stats.num_of_objs, 1);
+    assert_eq!(res.verify(&chain).unwrap().0, VerifyResult::Ok);
+}
+
+#[test]
+fn test_data2_acc2() {
+    let mut chain = FakeInMemChain::new();
+    let param = Parameter {
+        v_bit_len: vec![3],
+        acc_type: acc::Type::ACC2,
+        use_sk: true,
+        intra_index: true,
+        skip_list_max_level: 0,
+    };
+    chain.build_chain(TEST_DATA_2, &param).unwrap();
+    let query = Query::from_json(&json!({
+        "start_block": 1,
+        "end_block": 20,
+        "range": [
+            [1],
+            [1],
+        ],
+        "bool": [["a"]],
+    }))
+    .unwrap();
+    let res: OverallResult<acc::Acc2Proof> = historical_query(&query, &chain).unwrap();
+    assert_eq!(res.vo_stats.num_of_objs, 4);
+    assert_eq!(res.verify(&chain).unwrap().0, VerifyResult::Ok);
 }
 
 #[test]
@@ -170,4 +275,17 @@ fn test_data2_acc2_skip_list() {
         skip_list_max_level: 2,
     };
     chain.build_chain(TEST_DATA_2, &param).unwrap();
+    let query = Query::from_json(&json!({
+        "start_block": 1,
+        "end_block": 20,
+        "range": [
+            [1],
+            [1],
+        ],
+        "bool": [["a"]],
+    }))
+    .unwrap();
+    let res: OverallResult<acc::Acc2Proof> = historical_query(&query, &chain).unwrap();
+    assert_eq!(res.vo_stats.num_of_objs, 4);
+    assert_eq!(res.verify(&chain).unwrap().0, VerifyResult::Ok);
 }
