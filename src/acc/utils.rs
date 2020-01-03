@@ -158,25 +158,7 @@ mod tests {
     use super::*;
     use crate::acc::curve::{G1Projective as G1, G2Projective as G2};
     use algebra::Field;
-    use core::str::FromStr;
     use rand::Rng;
-
-    #[test]
-    fn test_digest_to_fr() {
-        let expect = Fr::from_str(
-            "32989918779257230814422729726339924882087697487711703389192255483654377186535",
-        )
-        .unwrap();
-        let d = Digest(*b"\xbd\x86\xc3\x39\x7e\x8f\x3a\x9f\xc6\x95\xd1\xba\x57\x40\x86\xa1\x34\x55\x4c\xea\x08\xec\x9c\x9e\x65\xdd\xbb\x5b\x82\x3e\x8c\x03");
-        assert_eq!(digest_to_fr(&d), expect);
-
-        let expect = Fr::from_str(
-            "26777829725110684505926458044335527090345198228542316312081980876947563626433",
-        )
-        .unwrap();
-        let d = Digest(*b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff");
-        assert_eq!(digest_to_fr(&d), expect);
-    }
 
     #[test]
     fn test_xgcd() {
