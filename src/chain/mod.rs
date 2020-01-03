@@ -23,6 +23,9 @@ pub use query_result::*;
 pub mod historical_query;
 pub use historical_query::*;
 
+pub mod sim_chain;
+pub use sim_chain::*;
+
 pub type IdType = u32;
 pub type SkipLstLvlType = u8;
 
