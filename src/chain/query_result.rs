@@ -24,6 +24,12 @@ pub enum VerifyResult {
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ResultObjs(pub HashMap<IdType, Object>);
 
+impl ResultObjs {
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
+}
+
 impl Deref for ResultObjs {
     type Target = HashMap<IdType, Object>;
 
@@ -48,6 +54,13 @@ pub struct ResultVOAcc<AP: AccumulatorProof> {
 }
 
 impl<AP: AccumulatorProof> ResultVOAcc<AP> {
+    pub fn new() -> Self {
+        Self {
+            query_exp_sets: Vec::new(),
+            proofs: HashMap::new(),
+            object_accs: HashMap::new(),
+        }
+    }
     pub fn get_object_acc(&self, proof_idx: AccProofIdxType) -> Option<&G1Affine> {
         Some(&self.object_accs.get(&proof_idx.0)?.get(proof_idx.1)?.0)
     }
@@ -164,6 +177,10 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
 pub struct ResultVOTree(pub Vec<vo::ResultVONode>);
 
 impl ResultVOTree {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
     pub fn compute_digest<AP: AccumulatorProof>(
         &self,
         res_objs: &ResultObjs,
@@ -186,6 +203,15 @@ pub struct ResultVO<AP: AccumulatorProof> {
     pub vo_acc: ResultVOAcc<AP>,
 }
 
+impl<AP: AccumulatorProof> ResultVO<AP> {
+    pub fn new() -> Self {
+        Self {
+            vo_t: ResultVOTree::new(),
+            vo_acc: ResultVOAcc::<AP>::new(),
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OverallResult<AP: AccumulatorProof> {
     #[serde(rename = "result")]
@@ -193,7 +219,7 @@ pub struct OverallResult<AP: AccumulatorProof> {
     #[serde(rename = "vo")]
     pub res_vo: ResultVO<AP>,
     pub query: Query,
-    pub query_time_in_ms: u64,
+    pub query_time_in_ms: u128,
     pub v_bit_len: Vec<u8>,
     pub vo_size: u64,
 }
