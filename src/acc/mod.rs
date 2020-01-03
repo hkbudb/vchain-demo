@@ -30,7 +30,9 @@ const GS_VEC_LEN: usize = 0;
 const GS_VEC_LEN: usize = 5000;
 
 lazy_static! {
-    static ref PUB_Q: Fr = Fr::from_str("173169506511432145374212744878663118934").unwrap();
+    // 250 bits
+    static ref PUB_Q: Fr = Fr::from_str("480721077433357505777975950918924200361380912084288598463024400624539293706").unwrap();
+    // 128 bits
     static ref PRI_S: Fr = Fr::from_str("259535143263514268207918833918737523409").unwrap();
     static ref G1_POWER: FixedBaseCurvePow<G1Projective> =
         FixedBaseCurvePow::build(&G1Projective::prime_subgroup_generator());

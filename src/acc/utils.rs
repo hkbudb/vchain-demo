@@ -8,7 +8,10 @@ pub fn digest_to_fr(input: &Digest) -> Fr {
     let mut data = input.0;
     // drop the last two bits to ensure it is less than the modular
     *data.last_mut().unwrap() &= 0x3f;
-    Fr::from_random_bytes(&data).unwrap()
+    let mut num = Fr::from_random_bytes(&data).unwrap().into_repr();
+    // ensure the Fr is at most in 248 bits. so PUB_Q - Fr and Fr + PUB_Q - Fr never overflow.
+    num.0[3] &= 0x00ff_ffff_ffff_ffff;
+    Fr::from_repr(num)
 }
 
 /// Return (g, x, y) s.t. a*x + b*y = g = gcd(a, b)
