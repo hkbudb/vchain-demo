@@ -245,6 +245,7 @@ pub struct OverallResult<AP: AccumulatorProof> {
     pub query_time_in_ms: u128,
     pub v_bit_len: Vec<u8>,
     pub vo_size: u64,
+    #[serde(rename = "stats")]
     pub vo_stats: VOStatistic,
 }
 
