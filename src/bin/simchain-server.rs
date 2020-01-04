@@ -2,7 +2,7 @@
 extern crate log;
 
 use actix_cors::Cors;
-use actix_web::{web, App, HttpRequest, HttpServer, Responder};
+use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use anyhow::Context;
 use futures::StreamExt;
 use serde::Serialize;
@@ -45,7 +45,7 @@ macro_rules! impl_get_info {
                 .map_err(handle_err)?;
             info!("call {} with {}", stringify!($func), id);
             let data = get_chain().$func(id).map_err(handle_err)?;
-            Ok(serde_json::to_string(&data))
+            Ok(HttpResponse::Ok().json(data))
         }
     };
 }
@@ -58,7 +58,7 @@ impl_get_info!(web_get_object, read_object);
 
 async fn web_get_param(_req: HttpRequest) -> actix_web::Result<impl Responder> {
     let data = get_chain().get_parameter().map_err(handle_err)?;
-    Ok(serde_json::to_string(&data))
+    Ok(HttpResponse::Ok().json(data))
 }
 
 async fn web_query(mut body: web::Payload) -> actix_web::Result<impl Responder> {
@@ -74,12 +74,12 @@ async fn web_query(mut body: web::Payload) -> actix_web::Result<impl Responder> 
         acc::Type::ACC1 => {
             let res: OverallResult<acc::Acc1Proof> =
                 historical_query(&query, get_chain()).map_err(handle_err)?;
-            Ok(serde_json::to_string(&res))
+            Ok(HttpResponse::Ok().json(res))
         }
         acc::Type::ACC2 => {
             let res: OverallResult<acc::Acc2Proof> =
                 historical_query(&query, get_chain()).map_err(handle_err)?;
-            Ok(serde_json::to_string(&res))
+            Ok(HttpResponse::Ok().json(res))
         }
     }
 }
@@ -116,7 +116,7 @@ async fn web_verify(mut body: web::Payload) -> actix_web::Result<impl Responder>
         detail: verify_result,
         verify_time_in_ms: time.as_millis(),
     };
-    Ok(serde_json::to_string(&response))
+    Ok(HttpResponse::Ok().json(response))
 }
 
 #[derive(StructOpt, Debug)]
@@ -144,9 +144,9 @@ async fn main() -> actix_web::Result<()> {
         App::new()
             .wrap(
                 Cors::new()
-                .send_wildcard()
-                .allowed_methods(vec!["GET", "POST"])
-                .finish(),
+                    .send_wildcard()
+                    .allowed_methods(vec!["GET", "POST"])
+                    .finish(),
             )
             .route("/get/param", web::get().to(web_get_param))
             .route("/get/blk_header/{id}", web::get().to(web_get_blk_header))
@@ -161,8 +161,8 @@ async fn main() -> actix_web::Result<()> {
             .route("/verify", web::post().to(web_verify))
     })
     .bind(opts.binding)?
-        .run()
-        .await?;
+    .run()
+    .await?;
 
     Ok(())
 }
