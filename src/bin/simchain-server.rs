@@ -1,15 +1,16 @@
 #[macro_use]
 extern crate log;
 
-use std::path::{PathBuf};
-use structopt::StructOpt;
-use vchain::acc;
-use vchain::chain::*;
+use actix_cors::Cors;
 use actix_web::{web, App, HttpRequest, HttpServer, Responder};
-use std::fmt;
 use anyhow::Context;
 use futures::StreamExt;
 use serde::Serialize;
+use std::fmt;
+use std::path::PathBuf;
+use structopt::StructOpt;
+use vchain::acc;
+use vchain::chain::*;
 
 static mut CHAIN: Option<SimChain> = None;
 
@@ -35,7 +36,10 @@ impl actix_web::error::ResponseError for MyErr {}
 macro_rules! impl_get_info {
     ($name: ident, $func: ident) => {
         async fn $name(req: HttpRequest) -> actix_web::Result<impl Responder> {
-            let id = req.match_info().get("id").context("failed to get id")
+            let id = req
+                .match_info()
+                .get("id")
+                .context("failed to get id")
                 .map_err(handle_err)?
                 .parse::<IdType>()
                 .map_err(handle_err)?;
@@ -57,7 +61,7 @@ async fn web_get_param(_req: HttpRequest) -> actix_web::Result<impl Responder> {
     Ok(serde_json::to_string(&data))
 }
 
-async fn web_query(mut body : web::Payload) -> actix_web::Result<impl Responder> {
+async fn web_query(mut body: web::Payload) -> actix_web::Result<impl Responder> {
     let mut bytes = web::BytesMut::new();
     while let Some(item) = body.next().await {
         bytes.extend_from_slice(&item?);
@@ -68,11 +72,13 @@ async fn web_query(mut body : web::Payload) -> actix_web::Result<impl Responder>
     let param = get_chain().get_parameter().map_err(handle_err)?;
     match param.acc_type {
         acc::Type::ACC1 => {
-            let res: OverallResult<acc::Acc1Proof> = historical_query(&query, get_chain()).map_err(handle_err)?;
+            let res: OverallResult<acc::Acc1Proof> =
+                historical_query(&query, get_chain()).map_err(handle_err)?;
             Ok(serde_json::to_string(&res))
         }
         acc::Type::ACC2 => {
-            let res: OverallResult<acc::Acc2Proof> = historical_query(&query, get_chain()).map_err(handle_err)?;
+            let res: OverallResult<acc::Acc2Proof> =
+                historical_query(&query, get_chain()).map_err(handle_err)?;
             Ok(serde_json::to_string(&res))
         }
     }
@@ -94,14 +100,17 @@ async fn web_verify(mut body: web::Payload) -> actix_web::Result<impl Responder>
     let param = get_chain().get_parameter().map_err(handle_err)?;
     let (verify_result, time) = match param.acc_type {
         acc::Type::ACC1 => {
-            let res: OverallResult<acc::Acc1Proof> = serde_json::from_slice(&bytes).map_err(handle_err)?;
+            let res: OverallResult<acc::Acc1Proof> =
+                serde_json::from_slice(&bytes).map_err(handle_err)?;
             res.verify(get_chain())
         }
         acc::Type::ACC2 => {
-            let res: OverallResult<acc::Acc2Proof> = serde_json::from_slice(&bytes).map_err(handle_err)?;
+            let res: OverallResult<acc::Acc2Proof> =
+                serde_json::from_slice(&bytes).map_err(handle_err)?;
             res.verify(get_chain())
         }
-    }.map_err(handle_err)?;
+    }
+    .map_err(handle_err)?;
     let response = VerifyResponse {
         pass: verify_result == VerifyResult::Ok,
         detail: verify_result,
@@ -127,14 +136,25 @@ async fn main() -> actix_web::Result<()> {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
     let opts = Opts::from_args();
     let chain = SimChain::open(&opts.db).map_err(handle_err)?;
-    unsafe { CHAIN = Some(chain); }
+    unsafe {
+        CHAIN = Some(chain);
+    }
 
     HttpServer::new(|| {
         App::new()
+            .wrap(
+                Cors::new()
+                .send_wildcard()
+                .allowed_methods(vec!["GET", "POST"])
+                .finish(),
+            )
             .route("/get/param", web::get().to(web_get_param))
             .route("/get/blk_header/{id}", web::get().to(web_get_blk_header))
             .route("/get/blk_data/{id}", web::get().to(web_get_blk_data))
-            .route("/get/intraindex/{id}", web::get().to(web_get_intra_index_node))
+            .route(
+                "/get/intraindex/{id}",
+                web::get().to(web_get_intra_index_node),
+            )
             .route("/get/skiplist/{id}", web::get().to(web_get_skip_list_node))
             .route("/get/obj/{id}", web::get().to(web_get_object))
             .route("/query", web::post().to(web_query))
