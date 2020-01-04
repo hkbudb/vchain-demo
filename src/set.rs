@@ -1,7 +1,11 @@
 use crate::digest::Digestable;
 use core::iter::FromIterator;
 use core::ops::{Add, BitAnd, BitOr, Deref};
-use serde::{Deserialize, Serialize};
+use serde::{
+    de::Deserializer,
+    ser::{SerializeSeq, SerializeStruct, Serializer},
+    Deserialize, Serialize,
+};
 use std::collections::HashMap;
 
 pub trait SetElement: Digestable + Clone + Send + Sync + Eq + PartialEq + core::hash::Hash {}
@@ -10,7 +14,7 @@ impl<T> SetElement for T where
 {
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct MultiSet<T: SetElement> {
     pub(crate) inner: HashMap<T, u32>,
 }
@@ -106,6 +110,55 @@ impl<T: SetElement> FromIterator<(T, u32)> for MultiSet<T> {
     }
 }
 
+impl<T: SetElement + Serialize> Serialize for MultiSet<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if serializer.is_human_readable() {
+            #[derive(Serialize)]
+            struct Element<T: Serialize + Clone> {
+                obj: T,
+                cnt: u32,
+            }
+
+            let mut seq = serializer.serialize_seq(Some(self.len()))?;
+            for (k, v) in self.iter() {
+                seq.serialize_element(&Element {
+                    obj: k.clone(),
+                    cnt: *v,
+                })?;
+            }
+            seq.end()
+        } else {
+            let mut state = serializer.serialize_struct("MultiSet", 1)?;
+            state.serialize_field("inner", &self.inner)?;
+            state.end()
+        }
+    }
+}
+
+impl<'de, T: SetElement + Deserialize<'de>> Deserialize<'de> for MultiSet<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        if deserializer.is_human_readable() {
+            #[derive(Deserialize)]
+            struct Element<T> {
+                obj: T,
+                cnt: u32,
+            }
+
+            let inner: Vec<Element<T>> = Deserialize::deserialize(deserializer)?;
+            Ok(Self::from_iter(inner.into_iter().map(|v| (v.obj, v.cnt))))
+        } else {
+            let inner: HashMap<T, u32> = Deserialize::deserialize(deserializer)?;
+            Ok(Self { inner })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -141,5 +194,14 @@ mod tests {
         let s2 = MultiSet::from_vec(vec![2, 2, 3]);
         let s3 = MultiSet::from_tuple_vec(vec![(2, 1)]);
         assert_eq!(&s1 & &s2, s3);
+    }
+
+    #[test]
+    fn test_serde() {
+        let s = MultiSet::from_vec(vec![1, 1, 2]);
+        let json = serde_json::to_string_pretty(&s).unwrap();
+        let bin = bincode::serialize(&s).unwrap();
+        assert_eq!(serde_json::from_str::<MultiSet<i32>>(&json).unwrap(), s);
+        assert_eq!(bincode::deserialize::<MultiSet<i32>>(&bin[..]).unwrap(), s);
     }
 }
