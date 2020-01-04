@@ -102,16 +102,19 @@ impl Range {
             let mut queue: VecDeque<(u32, u32)> = VecDeque::new();
             queue.push_back((0, 0));
 
-            while let Some((mask, left)) = queue.pop_front() {
+            while let Some((mut mask, left)) = queue.pop_front() {
                 let mask_inv = !mask;
                 let right = left | mask_inv;
 
                 if l <= left && right <= r {
+                    if bit_len[i] < 32 {
+                        mask &= !(0xffff_ffff << bit_len[i]);
+                    }
                     set_data.inner.insert(
                         SetElementType::V {
                             dim: i as u32,
                             val: left,
-                            mask: mask & !(0xffff_ffff << bit_len[i]),
+                            mask,
                         },
                         1,
                     );
