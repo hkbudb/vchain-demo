@@ -8,6 +8,8 @@ use vchain::chain::*;
 use actix_web::{web, App, HttpRequest, HttpServer, Responder};
 use std::fmt;
 use anyhow::Context;
+use futures::StreamExt;
+use serde::Serialize;
 
 static mut CHAIN: Option<SimChain> = None;
 
@@ -55,6 +57,52 @@ async fn web_get_param(_req: HttpRequest) -> actix_web::Result<impl Responder> {
     Ok(serde_json::to_string(&data))
 }
 
+async fn web_query(query: web::Json<Query>) -> actix_web::Result<impl Responder> {
+    let param = get_chain().get_parameter().map_err(handle_err)?;
+    match param.acc_type {
+        acc::Type::ACC1 => {
+            let res: OverallResult<acc::Acc1Proof> = historical_query(&query, get_chain()).map_err(handle_err)?;
+            Ok(serde_json::to_string(&res))
+        }
+        acc::Type::ACC2 => {
+            let res: OverallResult<acc::Acc2Proof> = historical_query(&query, get_chain()).map_err(handle_err)?;
+            Ok(serde_json::to_string(&res))
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct VerifyResponse {
+    pass: bool,
+    detail: VerifyResult,
+    verify_time_in_ms: u128,
+}
+
+async fn web_verify(mut body: web::Payload) -> actix_web::Result<impl Responder> {
+    let mut bytes = web::BytesMut::new();
+    while let Some(item) = body.next().await {
+        bytes.extend_from_slice(&item?);
+    }
+
+    let param = get_chain().get_parameter().map_err(handle_err)?;
+    let (verify_result, time) = match param.acc_type {
+        acc::Type::ACC1 => {
+            let res: OverallResult<acc::Acc1Proof> = serde_json::from_slice(&bytes).map_err(handle_err)?;
+            res.verify(get_chain())
+        }
+        acc::Type::ACC2 => {
+            let res: OverallResult<acc::Acc2Proof> = serde_json::from_slice(&bytes).map_err(handle_err)?;
+            res.verify(get_chain())
+        }
+    }.map_err(handle_err)?;
+    let response = VerifyResponse {
+        pass: verify_result == VerifyResult::Ok,
+        detail: verify_result,
+        verify_time_in_ms: time.as_millis(),
+    };
+    Ok(serde_json::to_string(&response))
+}
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "simchain-server")]
 struct Opts {
@@ -82,6 +130,8 @@ async fn main() -> actix_web::Result<()> {
             .route("/get/intraindex/{id}", web::get().to(web_get_intra_index_node))
             .route("/get/skiplist/{id}", web::get().to(web_get_skip_list_node))
             .route("/get/obj/{id}", web::get().to(web_get_object))
+            .route("/query", web::post().to(web_query))
+            .route("/verify", web::post().to(web_verify))
     })
     .bind(opts.binding)?
         .run()
