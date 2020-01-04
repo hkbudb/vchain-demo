@@ -26,7 +26,7 @@ impl SimChain {
         opts.create_if_missing(true);
         Ok(Self {
             root_path: path.to_owned(),
-            param: param,
+            param,
             block_header_db: DB::open(&opts, path.join("blk_header.db"))?,
             block_data_db: DB::open(&opts, path.join("blk_data.db"))?,
             intra_index_db: DB::open(&opts, path.join("intra_index.db"))?,

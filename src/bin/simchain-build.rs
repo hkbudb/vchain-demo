@@ -19,6 +19,7 @@ fn parse_acc(input: &str) -> Result<acc::Type> {
     }
 }
 
+#[allow(clippy::box_vec)]
 fn parse_v_bit_len(input: &str) -> Result<Box<Vec<u8>>> {
     let x = input
         .split(',')
@@ -44,6 +45,7 @@ struct Opts {
 
     /// bit len for each dimension of the v data (e.g. 16,8)
     #[structopt(long, parse(try_from_str = parse_v_bit_len))]
+    #[allow(clippy::box_vec)]
     bit_len: Box<Vec<u8>>,
 
     /// use sk to build chain
