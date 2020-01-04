@@ -14,6 +14,8 @@ name = "points_mul_sum"
 harness = false
 
 [dependencies]
+actix-rt = "1.0"
+actix-web = "2.0"
 algebra = { git = "https://github.com/scipr-lab/zexe/", rev = "a6f6f1dcef038d2c21366883637940339a2a97bf" }
 anyhow = "1.0"
 bincode = "1.2"
