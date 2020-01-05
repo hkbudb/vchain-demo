@@ -6,9 +6,11 @@
 * Run `cargo test` for unit test.
 * Run `cargo build --release` to build the binaries, which will be located at `target/release/` folder.
 
-## Create Block DB
+## SimChain
 
-### Input Format
+### Create Block DB
+
+#### Input Format
 
 The input is a text file with each line represent an object.
 
@@ -46,11 +48,11 @@ Run `simchain-server` after the database is built. For example:
 
 Run `simchain-server --help` for more info.
 
-## Server REST API
+### Server REST API
 
-### Inspect
+#### Inspect
 
-Use following API endpoint to inspect the blockchain. Returned response is a JSON object. Refer to source code for their definitions.
+Use following API endpoints to inspect the blockchain. Returned response is a JSON object. Refer to source code for their definitions.
 
 ```
 GET /get/param
@@ -58,10 +60,11 @@ GET /get/blk_header/{id}
 GET /get/blk_data/{id}
 GET /get/intraindex/{id}
 GET /get/skiplist/{id}
+GET /get/index/{id}
 GET /get/obj/{id}
 ```
 
-### Query
+#### Query
 
 API endpoint is:
 
@@ -95,7 +98,7 @@ The response is a JSON object like:
 
 Refer to the source code for their definitions.
 
-### Verify
+#### Verify
 
 Pass the query response directly to the following endpoint for verification.
 
