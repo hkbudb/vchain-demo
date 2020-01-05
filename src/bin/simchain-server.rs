@@ -2,8 +2,7 @@
 extern crate log;
 
 use actix_cors::Cors;
-use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
-use anyhow::Context;
+use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use futures::StreamExt;
 use serde::Serialize;
 use std::fmt;
@@ -35,14 +34,8 @@ impl actix_web::error::ResponseError for MyErr {}
 
 macro_rules! impl_get_info {
     ($name: ident, $func: ident) => {
-        async fn $name(req: HttpRequest) -> actix_web::Result<impl Responder> {
-            let id = req
-                .match_info()
-                .get("id")
-                .context("failed to get id")
-                .map_err(handle_err)?
-                .parse::<IdType>()
-                .map_err(handle_err)?;
+        async fn $name(req: web::Path<(IdType,)>) -> actix_web::Result<impl Responder> {
+            let id = req.0;
             info!("call {} with {}", stringify!($func), id);
             let data = get_chain().$func(id).map_err(handle_err)?;
             Ok(HttpResponse::Ok().json(data))
@@ -56,7 +49,20 @@ impl_get_info!(web_get_intra_index_node, read_intra_index_node);
 impl_get_info!(web_get_skip_list_node, read_skip_list_node);
 impl_get_info!(web_get_object, read_object);
 
-async fn web_get_param(_req: HttpRequest) -> actix_web::Result<impl Responder> {
+async fn web_get_index_node(req: web::Path<(IdType,)>) -> actix_web::Result<impl Responder> {
+    let id = req.0;
+    info!("call read_index_node with {}", id);
+    match get_chain().read_intra_index_node(id) {
+        Ok(data) => Ok(HttpResponse::Ok().json(data)),
+        _ => {
+            let data = get_chain().read_skip_list_node(id).map_err(handle_err)?;
+            Ok(HttpResponse::Ok().json(data))
+        }
+    }
+}
+
+async fn web_get_param() -> actix_web::Result<impl Responder> {
+    info!("call get_parameter");
     let data = get_chain().get_parameter().map_err(handle_err)?;
     Ok(HttpResponse::Ok().json(data))
 }
@@ -156,6 +162,7 @@ async fn main() -> actix_web::Result<()> {
                 web::get().to(web_get_intra_index_node),
             )
             .route("/get/skiplist/{id}", web::get().to(web_get_skip_list_node))
+            .route("/get/index/{id}", web::get().to(web_get_index_node))
             .route("/get/obj/{id}", web::get().to(web_get_object))
             .route("/query", web::post().to(web_query))
             .route("/verify", web::post().to(web_verify))

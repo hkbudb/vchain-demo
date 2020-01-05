@@ -6,8 +6,7 @@ use core::sync::atomic::{AtomicU64, Ordering};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-static INTRA_INDEX_ID_CNT: AtomicU64 = AtomicU64::new(0);
-static SKIP_LIST_ID_CNT: AtomicU64 = AtomicU64::new(0);
+static INDEX_ID_CNT: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum IntraIndexNode {
@@ -62,7 +61,7 @@ impl IntraIndexNonLeaf {
         child_hashes: SmallVec<[Digest; 2]>,
         child_ids: SmallVec<[IdType; 2]>,
     ) -> Self {
-        let id = INTRA_INDEX_ID_CNT.fetch_add(1, Ordering::SeqCst) as IdType;
+        let id = INDEX_ID_CNT.fetch_add(1, Ordering::SeqCst) as IdType;
         Self {
             id,
             block_id,
@@ -100,7 +99,7 @@ impl IntraIndexLeaf {
         obj_id: IdType,
         obj_hash: Digest,
     ) -> Self {
-        let id = INTRA_INDEX_ID_CNT.fetch_add(1, Ordering::SeqCst) as IdType;
+        let id = INDEX_ID_CNT.fetch_add(1, Ordering::SeqCst) as IdType;
         Self {
             id,
             block_id,
@@ -138,7 +137,7 @@ impl SkipListNode {
         acc_value: G1Affine,
         pre_skipped_hash: Digest,
     ) -> Self {
-        let id = SKIP_LIST_ID_CNT.fetch_add(1, Ordering::SeqCst) as IdType;
+        let id = INDEX_ID_CNT.fetch_add(1, Ordering::SeqCst) as IdType;
         let digest = concat_digest_ref([acc_value.to_digest(), pre_skipped_hash].iter());
         Self {
             id,
