@@ -38,7 +38,7 @@ Run `simchain-build` to build the database. You need to specify the bit length f
 
 Run `simchain-build --help` for more info.
 
-## Start the Server
+### Start the Server
 
 Run `simchain-server` after the database is built. For example:
 
