@@ -68,6 +68,7 @@ impl Digestable for Object {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum SetElementType {
+    // To transform V to range: [val, val + ~mask & (mask - 1)]
     V { dim: u32, val: u32, mask: u32 },
     W(String),
 }
