@@ -150,7 +150,7 @@ fn test_data1_acc1_flat() {
         skip_list_max_level: 0,
     };
     chain.build_chain(TEST_DATA_1, &param).unwrap();
-    let query = Query::from_json(&json!({
+    let query = serde_json::from_value::<Query>(json!({
         "start_block": 1,
         "end_block": 2,
         "range": [
@@ -177,7 +177,7 @@ fn test_data1_acc1() {
         skip_list_max_level: 0,
     };
     chain.build_chain(TEST_DATA_1, &param).unwrap();
-    let query = Query::from_json(&json!({
+    let query = serde_json::from_value::<Query>(json!({
         "start_block": 1,
         "end_block": 2,
         "range": [
@@ -204,7 +204,7 @@ fn test_data1_acc2_flat() {
         skip_list_max_level: 0,
     };
     chain.build_chain(TEST_DATA_1, &param).unwrap();
-    let query = Query::from_json(&json!({
+    let query = serde_json::from_value::<Query>(json!({
         "start_block": 1,
         "end_block": 2,
         "range": [
@@ -231,7 +231,7 @@ fn test_data1_acc2() {
         skip_list_max_level: 0,
     };
     chain.build_chain(TEST_DATA_1, &param).unwrap();
-    let query = Query::from_json(&json!({
+    let query = serde_json::from_value::<Query>(json!({
         "start_block": 1,
         "end_block": 2,
         "range": [
@@ -258,7 +258,7 @@ fn test_data2_acc2() {
         skip_list_max_level: 0,
     };
     chain.build_chain(TEST_DATA_2, &param).unwrap();
-    let query = Query::from_json(&json!({
+    let query = serde_json::from_value::<Query>(json!({
         "start_block": 1,
         "end_block": 20,
         "range": [
@@ -285,7 +285,7 @@ fn test_data2_acc2_skip_list() {
         skip_list_max_level: 2,
     };
     chain.build_chain(TEST_DATA_2, &param).unwrap();
-    let query = Query::from_json(&json!({
+    let query = serde_json::from_value::<Query>(json!({
         "start_block": 1,
         "end_block": 20,
         "range": [
@@ -312,7 +312,7 @@ fn test_data2_acc1_skip_list() {
         skip_list_max_level: 2,
     };
     chain.build_chain(TEST_DATA_2, &param).unwrap();
-    let query = Query::from_json(&json!({
+    let query = serde_json::from_value::<Query>(json!({
         "start_block": 1,
         "end_block": 20,
         "range": [

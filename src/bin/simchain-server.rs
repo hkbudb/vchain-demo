@@ -67,14 +67,7 @@ async fn web_get_param() -> actix_web::Result<impl Responder> {
     Ok(HttpResponse::Ok().json(data))
 }
 
-async fn web_query(mut body: web::Payload) -> actix_web::Result<impl Responder> {
-    let mut bytes = web::BytesMut::new();
-    while let Some(item) = body.next().await {
-        bytes.extend_from_slice(&item?);
-    }
-    let query_req = serde_json::from_slice(&bytes).map_err(handle_err)?;
-    let query = Query::from_json(&query_req).map_err(handle_err)?;
-
+async fn web_query(query: web::Json<Query>) -> actix_web::Result<impl Responder> {
     let param = get_chain().get_parameter().map_err(handle_err)?;
     match param.acc_type {
         acc::Type::ACC1 => {
