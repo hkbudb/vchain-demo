@@ -72,7 +72,7 @@ fn build_chain(data_path: &Path, out_path: &Path, param: &Parameter) -> Result<(
 
     let mut prev_hash = Digest::default();
     for (id, objs) in raw_objs.iter() {
-        if id % 10_000 == 0 {
+        if id % 1000 == 0 {
             info!("build blk #{}", id);
         }
         let header = build_block(*id, prev_hash, objs.iter(), &mut chain)?;
