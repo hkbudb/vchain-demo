@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use vchain::acc;
 use vchain::chain::*;
+use vchain_simchain::SimChain;
 
 static mut CHAIN: Option<SimChain> = None;
 

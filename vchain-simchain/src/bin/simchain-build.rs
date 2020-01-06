@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use vchain::acc;
 use vchain::chain::*;
-use vchain::digest::{Digest, Digestable};
+use vchain::{Digest, Digestable};
+use vchain_simchain::SimChain;
 
 fn parse_acc(input: &str) -> Result<acc::Type> {
     let input = input.to_ascii_lowercase();

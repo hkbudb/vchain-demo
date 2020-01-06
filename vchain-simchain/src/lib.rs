@@ -1,8 +1,11 @@
-use super::*;
-use anyhow::Context;
+#[macro_use]
+extern crate log;
+
+use anyhow::{Context, Result};
 use rocksdb::{self, DB};
 use std::fs;
 use std::path::{Path, PathBuf};
+use vchain::*;
 
 pub struct SimChain {
     root_path: PathBuf,
