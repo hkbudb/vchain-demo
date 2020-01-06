@@ -3,6 +3,7 @@ extern crate log;
 
 use anyhow::{bail, Result};
 use exonum::{
+    api::backends::actix::AllowOrigin,
     blockchain::{config::GenesisConfigBuilder, ConsensusConfig, ValidatorKeys},
     keys::Keys,
     node::{Node, NodeApiConfig, NodeConfig},
@@ -31,6 +32,7 @@ fn node_config(api_address: String, peer_address: String) -> Result<NodeConfig> 
 
     let api_cfg = NodeApiConfig {
         public_api_address: Some(api_address.parse()?),
+        public_allow_origin: Some(AllowOrigin::Any),
         ..Default::default()
     };
 
