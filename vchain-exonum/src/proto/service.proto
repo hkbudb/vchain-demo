@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package vchain;
+
+message Parameter
+{
+  bytes data = 1;
+}
+
+message Object
+{
+  bytes data = 1;
+}
+
+message BlockHeader
+{
+  bytes data = 1;
+}
+
+message BlockData
+{
+  bytes data = 1;
+}
+
+message IntraIndexNode
+{
+  bytes data = 1;
+}
+
+message SkipListNode
+{
+  bytes data = 1;
+}
+
+message RawObject
+{
+  repeated uint32 v_data = 1;
+  repeated string w_data = 2;
+}
+
+message TxNewBlock
+{
+  repeated RawObject objs = 1;
+}

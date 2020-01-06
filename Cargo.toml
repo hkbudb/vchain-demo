@@ -1,5 +1,6 @@
 [workspace]
 members = [
   "vchain",
+  "vchain-exonum",
   "vchain-simchain",
 ]
