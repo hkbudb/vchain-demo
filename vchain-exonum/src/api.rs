@@ -5,6 +5,11 @@ use vchain::{IdType, ReadInterface};
 #[derive(Debug, Clone, Copy)]
 pub struct VChainApi;
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+pub struct QueryInput {
+    pub id: IdType,
+}
+
 impl VChainApi {
     pub fn get_param(self, state: &ServiceApiState<'_>) -> api::Result<vchain::Parameter> {
         let schema = VChainSchema::new(state.service_data());
@@ -16,11 +21,11 @@ impl VChainApi {
     pub fn get_object(
         self,
         state: &ServiceApiState<'_>,
-        id: IdType,
+        query: QueryInput,
     ) -> api::Result<vchain::Object> {
         let schema = VChainSchema::new(state.service_data());
         schema
-            .read_object(id)
+            .read_object(query.id)
             .map_err(|e| api::Error::NotFound(format!("{:?}", e)))
     }
 
@@ -33,7 +38,7 @@ impl VChainApi {
             )
             .endpoint(
                 "get/object",
-                move |state: &ServiceApiState<'_>, id: IdType| self.get_object(state, id),
+                move |state: &ServiceApiState<'_>, query: QueryInput| self.get_object(state, query),
             );
     }
 }
