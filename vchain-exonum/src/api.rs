@@ -73,6 +73,24 @@ impl VChainApi {
             .map_err(|e| api::Error::NotFound(format!("{:?}", e)))
     }
 
+    pub fn get_index_node(
+        self,
+        state: &ServiceApiState<'_>,
+        query: QueryInput,
+    ) -> api::Result<serde_json::Value> {
+        match self.get_intra_index_node(state, query) {
+            Ok(data) => serde_json::to_value(data)
+                .map_err(|e| api::Error::InternalError(failure::format_err!("{:?}", e))),
+            _ => {
+                let data = self.get_skip_list_node(state, query).map_err(|_| {
+                    api::Error::NotFound(format!("no index node for id: {}", query.id))
+                })?;
+                serde_json::to_value(data)
+                    .map_err(|e| api::Error::InternalError(failure::format_err!("{:?}", e)))
+            }
+        }
+    }
+
     pub fn wire(self, builder: &mut ServiceApiBuilder) {
         builder
             .public_scope()
@@ -106,6 +124,12 @@ impl VChainApi {
                 "get/skiplist",
                 move |state: &ServiceApiState<'_>, query: QueryInput| {
                     self.get_skip_list_node(state, query)
+                },
+            )
+            .endpoint(
+                "get/index",
+                move |state: &ServiceApiState<'_>, query: QueryInput| {
+                    self.get_index_node(state, query)
                 },
             );
     }
