@@ -1,4 +1,4 @@
-use blake2b_simd::{self, blake2bp};
+use blake2b_simd;
 use core::fmt;
 use serde::{
     de::{Deserializer, SeqAccess, Visitor},
@@ -106,8 +106,8 @@ impl From<blake2b_simd::Hash> for Digest {
     }
 }
 
-pub fn blake2() -> blake2bp::Params {
-    let mut params = blake2bp::Params::new();
+pub fn blake2() -> blake2b_simd::Params {
+    let mut params = blake2b_simd::Params::new();
     params.hash_length(DIGEST_LEN);
     params
 }
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_to_digest() {
-        let expect = Digest(*b"\xbd\x86\xc3\x39\x7e\x8f\x3a\x9f\xc6\x95\xd1\xba\x57\x40\x86\xa1\x34\x55\x4c\xea\x08\xec\x9c\x9e\x65\xdd\xbb\x5b\x82\x3e\x8c\x03");
+        let expect = Digest(*b"\x32\x4d\xcf\x02\x7d\xd4\xa3\x0a\x93\x2c\x44\x1f\x36\x5a\x25\xe8\x6b\x17\x3d\xef\xa4\xb8\xe5\x89\x48\x25\x34\x71\xb8\x1b\x72\xcf");
         assert_eq!(b"hello"[..].to_digest(), expect);
         assert_eq!("hello".to_digest(), expect);
         assert_eq!("hello".to_owned().to_digest(), expect);
@@ -196,12 +196,12 @@ mod tests {
         let json = serde_json::to_string_pretty(&digest).unwrap();
         assert_eq!(
             json,
-            "\"bd86c3397e8f3a9fc695d1ba574086a134554cea08ec9c9e65ddbb5b823e8c03\""
+            "\"324dcf027dd4a30a932c441f365a25e86b173defa4b8e58948253471b81b72cf\""
         );
         let bin = bincode::serialize(&digest).unwrap();
         assert_eq!(
             bin,
-            b"\xbd\x86\xc3\x39\x7e\x8f\x3a\x9f\xc6\x95\xd1\xba\x57\x40\x86\xa1\x34\x55\x4c\xea\x08\xec\x9c\x9e\x65\xdd\xbb\x5b\x82\x3e\x8c\x03",
+            b"\x32\x4d\xcf\x02\x7d\xd4\xa3\x0a\x93\x2c\x44\x1f\x36\x5a\x25\xe8\x6b\x17\x3d\xef\xa4\xb8\xe5\x89\x48\x25\x34\x71\xb8\x1b\x72\xcf",
         );
 
         assert_eq!(serde_json::from_str::<Digest>(&json).unwrap(), digest);
