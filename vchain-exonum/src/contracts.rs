@@ -1,4 +1,9 @@
-use crate::{api::VChainApi, errors::Error, schema::VChainSchema, transactions::TxNewBlock};
+use crate::{
+    api::VChainApi,
+    errors::Error,
+    schema::VChainSchema,
+    transactions::{TxNewBlock, TxParam},
+};
 use exonum::{
     crypto::Hash,
     runtime::{
@@ -7,11 +12,12 @@ use exonum::{
     },
 };
 use exonum_merkledb::Snapshot;
-use vchain::{Digest, Digestable, IdType, ReadInterface};
+use vchain::{Digest, Digestable, IdType, ReadInterface, WriteInterface};
 
 #[exonum_interface]
 pub trait VChainInterface {
     fn new_block(&self, ctx: CallContext<'_>, arg: TxNewBlock) -> Result<(), Error>;
+    fn set_param(&self, ctx: CallContext<'_>, arg: TxParam) -> Result<(), Error>;
 }
 
 #[derive(Debug, ServiceFactory, ServiceDispatcher)]
@@ -37,7 +43,19 @@ impl VChainInterface for VChainService {
         match vchain::build_block(block_id, prev_hash, objs.iter(), &mut schema) {
             Ok(_) => Ok(()),
             Err(e) => {
-                error!("err when build new block: {:?}", e);
+                error!("err when building new block: {:?}", e);
+                Err(Error::Unknown)
+            }
+        }
+    }
+
+    fn set_param(&self, ctx: CallContext<'_>, arg: TxParam) -> Result<(), Error> {
+        let mut schema = VChainSchema::new(ctx.service_data());
+        let param = arg.into_vchain_type();
+        match schema.set_parameter(param) {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                error!("err when setting param: {:?}", e);
                 Err(Error::Unknown)
             }
         }

@@ -3,7 +3,7 @@ use exonum::crypto::Hash;
 use exonum_derive::{BinaryValue, FromAccess, ObjectHash};
 use exonum_merkledb::{
     access::{Access, RawAccessMut},
-    Entry, MapIndex,
+    Entry, MapIndex, ProofMapIndex, ObjectHash as _,
 };
 use exonum_proto::ProtobufConvert;
 use vchain::IdType;
@@ -43,7 +43,7 @@ impl_schema_from_proto!(SkipListNode);
 pub(crate) struct VChainSchema<T: Access> {
     pub param: Entry<T::Base, Parameter>,
     pub objects: MapIndex<T::Base, IdType, Object>,
-    pub block_headers: MapIndex<T::Base, IdType, BlockHeader>,
+    pub block_headers: ProofMapIndex<T::Base, IdType, BlockHeader>,
     pub block_data: MapIndex<T::Base, IdType, BlockData>,
     pub intra_index_nodes: MapIndex<T::Base, IdType, IntraIndexNode>,
     pub skip_list_nodes: MapIndex<T::Base, IdType, SkipListNode>,
@@ -51,7 +51,7 @@ pub(crate) struct VChainSchema<T: Access> {
 
 impl<T: Access> VChainSchema<T> {
     pub fn state_hash(&self) -> Vec<Hash> {
-        vec![]
+        vec![self.block_headers.object_hash()]
     }
 }
 

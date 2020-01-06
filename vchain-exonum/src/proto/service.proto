@@ -42,3 +42,11 @@ message TxNewBlock
 {
   repeated RawObject objs = 1;
 }
+
+message TxParam
+{
+  repeated int32 v_bit_len = 1;
+  bool is_acc2 = 2;
+  bool intra_index = 3;
+  int32 skip_list_max_level = 4;
+}

@@ -28,3 +28,28 @@ impl RawObject {
 pub struct TxNewBlock {
     pub objs: Vec<RawObject>,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize, ProtobufConvert, BinaryValue, ObjectHash)]
+#[protobuf_convert(source = "proto::TxParam")]
+pub struct TxParam {
+    pub v_bit_len: Vec<i32>,
+    pub is_acc2: bool,
+    pub intra_index: bool,
+    pub skip_list_max_level: i32,
+}
+
+impl TxParam {
+    pub fn into_vchain_type(self) -> vchain::Parameter {
+        vchain::Parameter {
+            v_bit_len: self.v_bit_len.iter().map(|x| *x as u8).collect(),
+            acc_type: if self.is_acc2 {
+                vchain::acc::Type::ACC2
+            } else {
+                vchain::acc::Type::ACC1
+            },
+            use_sk: false,
+            intra_index: self.intra_index,
+            skip_list_max_level: self.skip_list_max_level as vchain::SkipLstLvlType,
+        }
+    }
+}
