@@ -105,7 +105,7 @@ pub fn historical_query<AP: AccumulatorProof + Serialize>(
     }
 
     res.res_vo.vo_t.0.reverse();
-    res.query_time_in_ms = timer.elapsed().as_millis();
+    res.query_time_in_ms = timer.elapsed().as_millis() as u64;
     res.compute_stats()?;
     info!("used time: {}", cpu_timer.elapsed());
     Ok(res)

@@ -5,6 +5,7 @@ use actix_cors::Cors;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use futures::StreamExt;
 use serde::Serialize;
+use serde_json::json;
 use std::fmt;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -57,7 +58,7 @@ async fn web_get_index_node(req: web::Path<(IdType,)>) -> actix_web::Result<impl
         Ok(data) => Ok(HttpResponse::Ok().json(data)),
         _ => {
             let data = get_chain().read_skip_list_node(id).map_err(handle_err)?;
-            Ok(HttpResponse::Ok().json(data))
+            Ok(HttpResponse::Ok().json(json!({ "SkipListNode": data })))
         }
     }
 }
@@ -88,7 +89,7 @@ async fn web_query(query: web::Json<Query>) -> actix_web::Result<impl Responder>
 struct VerifyResponse {
     pass: bool,
     detail: VerifyResult,
-    verify_time_in_ms: u128,
+    verify_time_in_ms: u64,
 }
 
 async fn web_verify(mut body: web::Payload) -> actix_web::Result<impl Responder> {
@@ -114,7 +115,7 @@ async fn web_verify(mut body: web::Payload) -> actix_web::Result<impl Responder>
     let response = VerifyResponse {
         pass: verify_result == VerifyResult::Ok,
         detail: verify_result,
-        verify_time_in_ms: time.as_millis(),
+        verify_time_in_ms: time.as_millis() as u64,
     };
     Ok(HttpResponse::Ok().json(response))
 }

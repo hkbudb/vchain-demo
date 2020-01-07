@@ -1,6 +1,7 @@
 use crate::schema::VChainSchema;
 use exonum::runtime::rust::api::{self, ServiceApiBuilder, ServiceApiState};
-use vchain::{IdType, ReadInterface};
+use serde_json::json;
+use vchain::{acc, historical_query, IdType, OverallResult, ReadInterface};
 
 #[derive(Debug, Clone, Copy)]
 pub struct VChainApi;
@@ -10,12 +11,14 @@ pub struct QueryInput {
     pub id: IdType,
 }
 
+fn handle_err(e: anyhow::Error) -> api::Error {
+    api::Error::InternalError(failure::format_err!("{:?}", e))
+}
+
 impl VChainApi {
     pub fn get_param(self, state: &ServiceApiState<'_>) -> api::Result<vchain::Parameter> {
         let schema = VChainSchema::new(state.service_data());
-        schema
-            .get_parameter()
-            .map_err(|e| api::Error::NotFound(format!("{:?}", e)))
+        schema.get_parameter().map_err(handle_err)
     }
 
     pub fn get_object(
@@ -24,9 +27,7 @@ impl VChainApi {
         query: QueryInput,
     ) -> api::Result<vchain::Object> {
         let schema = VChainSchema::new(state.service_data());
-        schema
-            .read_object(query.id)
-            .map_err(|e| api::Error::NotFound(format!("{:?}", e)))
+        schema.read_object(query.id).map_err(handle_err)
     }
 
     pub fn get_block_header(
@@ -35,9 +36,7 @@ impl VChainApi {
         query: QueryInput,
     ) -> api::Result<vchain::BlockHeader> {
         let schema = VChainSchema::new(state.service_data());
-        schema
-            .read_block_header(query.id)
-            .map_err(|e| api::Error::NotFound(format!("{:?}", e)))
+        schema.read_block_header(query.id).map_err(handle_err)
     }
 
     pub fn get_block_data(
@@ -46,9 +45,7 @@ impl VChainApi {
         query: QueryInput,
     ) -> api::Result<vchain::BlockData> {
         let schema = VChainSchema::new(state.service_data());
-        schema
-            .read_block_data(query.id)
-            .map_err(|e| api::Error::NotFound(format!("{:?}", e)))
+        schema.read_block_data(query.id).map_err(handle_err)
     }
 
     pub fn get_intra_index_node(
@@ -57,9 +54,7 @@ impl VChainApi {
         query: QueryInput,
     ) -> api::Result<vchain::IntraIndexNode> {
         let schema = VChainSchema::new(state.service_data());
-        schema
-            .read_intra_index_node(query.id)
-            .map_err(|e| api::Error::NotFound(format!("{:?}", e)))
+        schema.read_intra_index_node(query.id).map_err(handle_err)
     }
 
     pub fn get_skip_list_node(
@@ -68,9 +63,7 @@ impl VChainApi {
         query: QueryInput,
     ) -> api::Result<vchain::SkipListNode> {
         let schema = VChainSchema::new(state.service_data());
-        schema
-            .read_skip_list_node(query.id)
-            .map_err(|e| api::Error::NotFound(format!("{:?}", e)))
+        schema.read_skip_list_node(query.id).map_err(handle_err)
     }
 
     pub fn get_index_node(
@@ -79,14 +72,35 @@ impl VChainApi {
         query: QueryInput,
     ) -> api::Result<serde_json::Value> {
         match self.get_intra_index_node(state, query) {
-            Ok(data) => serde_json::to_value(data)
-                .map_err(|e| api::Error::InternalError(failure::format_err!("{:?}", e))),
+            Ok(data) => Ok(json!(data)),
             _ => {
                 let data = self.get_skip_list_node(state, query).map_err(|_| {
                     api::Error::NotFound(format!("no index node for id: {}", query.id))
                 })?;
-                serde_json::to_value(data)
-                    .map_err(|e| api::Error::InternalError(failure::format_err!("{:?}", e)))
+                Ok(json!({ "SkipListNode": data }))
+            }
+        }
+    }
+
+    pub fn query(
+        self,
+        state: &ServiceApiState<'_>,
+        query: vchain::Query,
+    ) -> api::Result<serde_json::Value> {
+        let schema = VChainSchema::new(state.service_data());
+        let param = schema
+            .get_parameter()
+            .map_err(|e| api::Error::NotFound(format!("{:?}", e)))?;
+        match param.acc_type {
+            acc::Type::ACC1 => {
+                let res: OverallResult<acc::Acc1Proof> =
+                    historical_query(&query, &schema).map_err(handle_err)?;
+                Ok(json!(res))
+            }
+            acc::Type::ACC2 => {
+                let res: OverallResult<acc::Acc2Proof> =
+                    historical_query(&query, &schema).map_err(handle_err)?;
+                Ok(json!(res))
             }
         }
     }
@@ -131,6 +145,10 @@ impl VChainApi {
                 move |state: &ServiceApiState<'_>, query: QueryInput| {
                     self.get_index_node(state, query)
                 },
+            )
+            .endpoint_mut(
+                "query",
+                move |state: &ServiceApiState<'_>, query: vchain::Query| self.query(state, query),
             );
     }
 }

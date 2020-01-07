@@ -1,17 +1,17 @@
 #[macro_use]
 extern crate log;
 
-use anyhow::{Result};
+use anyhow::Result;
 use exonum::{crypto, runtime::rust::Transaction};
-use serde::{Serialize, Deserialize};
-use std::path::{PathBuf};
-use structopt::StructOpt;
-use vchain_exonum::transactions::{TxAddObjs, RawObject};
-use vchain::{IdType, load_raw_obj_from_file};
-use std::collections::{BTreeMap, };
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
+use structopt::StructOpt;
+use vchain::{load_raw_obj_from_file, IdType};
+use vchain_exonum::transactions::{RawObject, TxAddObjs};
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "simchain-build")]
@@ -60,7 +60,11 @@ async fn main() -> Result<()> {
         info!("tx_hash={:?}", tx_res.tx_hash);
 
         loop {
-            let res2 = client.get(&tx_url).query(&[("hash", tx_res.tx_hash.clone())]).send().await?;
+            let res2 = client
+                .get(&tx_url)
+                .query(&[("hash", tx_res.tx_hash.clone())])
+                .send()
+                .await?;
             debug!("response: {:?}", &res2);
             let tx_info = res2.json::<serde_json::Value>().await?;
             if tx_info.get("type").unwrap() == &json!("committed") {
