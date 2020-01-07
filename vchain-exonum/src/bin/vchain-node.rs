@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use exonum::{
     api::backends::actix::AllowOrigin,
     blockchain::{config::GenesisConfigBuilder, ConsensusConfig, ValidatorKeys},
@@ -12,7 +12,8 @@ use exonum::{
 use exonum_merkledb::{DbOptions, RocksDB};
 use std::path::PathBuf;
 use structopt::StructOpt;
-use vchain_exonum::service::VChainService;
+use vchain::acc;
+use vchain_exonum::{service::VChainService, transactions::InitParam};
 
 fn node_config(api_address: String, peer_address: String) -> Result<NodeConfig> {
     info!("api address: {}", &api_address);
@@ -56,6 +57,26 @@ fn node_config(api_address: String, peer_address: String) -> Result<NodeConfig> 
     })
 }
 
+fn parse_acc(input: &str) -> Result<acc::Type> {
+    let input = input.to_ascii_lowercase();
+    if input == "acc1" {
+        Ok(acc::Type::ACC1)
+    } else if input == "acc2" {
+        Ok(acc::Type::ACC2)
+    } else {
+        bail!("invalid acc type, please specify as acc1 or acc2.");
+    }
+}
+
+#[allow(clippy::box_vec)]
+fn parse_v_bit_len(input: &str) -> Result<Box<Vec<u32>>> {
+    let x = input
+        .split(',')
+        .map(|s| s.trim().parse::<u32>().map_err(anyhow::Error::msg))
+        .collect::<Result<Vec<u32>>>()?;
+    Ok(Box::new(x))
+}
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "vchain-node")]
 struct Opts {
@@ -70,6 +91,23 @@ struct Opts {
     /// Peer Address
     #[structopt(long, default_value = "127.0.0.1:2000")]
     peer_address: String,
+
+    /// acc type to be used
+    #[structopt(long, default_value = "acc2", parse(try_from_str = parse_acc))]
+    acc: acc::Type,
+
+    /// bit len for each dimension of the v data (e.g. 16,8)
+    #[structopt(long, parse(try_from_str = parse_v_bit_len))]
+    #[allow(clippy::box_vec)]
+    bit_len: Box<Vec<u32>>,
+
+    /// don't build intra index
+    #[structopt(short = "-f", long)]
+    no_intra_index: bool,
+
+    /// max skip list level, 0 means no skip list.
+    #[structopt(long, default_value = "0")]
+    skip_list_max_level: u32,
 }
 
 fn main() -> Result<()> {
@@ -78,7 +116,13 @@ fn main() -> Result<()> {
     );
 
     let opts = Opts::from_args();
-
+    let param = InitParam {
+        v_bit_len: opts.bit_len.to_vec(),
+        is_acc2: opts.acc == acc::Type::ACC2,
+        intra_index: !opts.no_intra_index,
+        skip_list_max_level: opts.skip_list_max_level,
+    };
+    info!("param: {:?}", param);
     info!("open db: {:?}", opts.db);
     let db = RocksDB::open(opts.db, &DbOptions::default()).map_err(anyhow::Error::msg)?;
 
@@ -89,7 +133,11 @@ fn main() -> Result<()> {
     let node_config = node_config(opts.api_address, opts.peer_address)?;
     let genesis_config = GenesisConfigBuilder::with_consensus_config(node_config.consensus.clone())
         .with_artifact(artifact_id.clone())
-        .with_instance(artifact_id.into_default_instance(1, "vchain"))
+        .with_instance(
+            artifact_id
+                .into_default_instance(1, "vchain")
+                .with_constructor(param),
+        )
         .build();
 
     let node = Node::new(

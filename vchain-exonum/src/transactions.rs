@@ -29,16 +29,16 @@ pub struct TxAddObjs {
     pub objs: Vec<RawObject>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, ProtobufConvert, BinaryValue, ObjectHash)]
-#[protobuf_convert(source = "proto::TxSetParam")]
-pub struct TxSetParam {
-    pub v_bit_len: Vec<i32>,
+#[derive(Serialize, Deserialize, Clone, Debug, ProtobufConvert, BinaryValue, ObjectHash)]
+#[protobuf_convert(source = "proto::InitParam")]
+pub struct InitParam {
+    pub v_bit_len: Vec<u32>,
     pub is_acc2: bool,
     pub intra_index: bool,
-    pub skip_list_max_level: i32,
+    pub skip_list_max_level: u32,
 }
 
-impl TxSetParam {
+impl InitParam {
     pub fn into_vchain_type(self) -> vchain::Parameter {
         vchain::Parameter {
             v_bit_len: self.v_bit_len.iter().map(|x| *x as u8).collect(),
@@ -53,7 +53,3 @@ impl TxSetParam {
         }
     }
 }
-
-#[derive(Serialize, Deserialize, Clone, Debug, ProtobufConvert, BinaryValue, ObjectHash)]
-#[protobuf_convert(source = "proto::Config")]
-pub struct Config;

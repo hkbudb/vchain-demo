@@ -43,12 +43,10 @@ message TxAddObjs
   repeated RawObject objs = 1;
 }
 
-message TxSetParam
+message InitParam
 {
-  repeated int32 v_bit_len = 1;
+  repeated uint32 v_bit_len = 1;
   bool is_acc2 = 2;
   bool intra_index = 3;
-  int32 skip_list_max_level = 4;
+  uint32 skip_list_max_level = 4;
 }
-
-message Config {}

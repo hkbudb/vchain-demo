@@ -2,22 +2,21 @@ use crate::{
     api::VChainApi,
     errors::Error,
     schema::VChainSchema,
-    transactions::{TxAddObjs, TxSetParam},
+    transactions::{InitParam, TxAddObjs},
 };
 use exonum::{
     crypto::Hash,
     runtime::{
         rust::{api::ServiceApiBuilder, CallContext, Service},
-        BlockchainData,
+        BlockchainData, DispatcherError, ExecutionError,
     },
 };
-use exonum_merkledb::Snapshot;
+use exonum_merkledb::{BinaryValue, Snapshot};
 use vchain::{Digest, Digestable, IdType, ReadInterface, WriteInterface};
 
 #[exonum_interface]
 pub trait VChainInterface {
     fn add_objs(&self, ctx: CallContext<'_>, arg: TxAddObjs) -> Result<(), Error>;
-    fn set_param(&self, ctx: CallContext<'_>, arg: TxSetParam) -> Result<(), Error>;
 }
 
 #[derive(Debug, ServiceFactory, ServiceDispatcher)]
@@ -48,21 +47,18 @@ impl VChainInterface for VChainService {
             }
         }
     }
-
-    fn set_param(&self, ctx: CallContext<'_>, arg: TxSetParam) -> Result<(), Error> {
-        let mut schema = VChainSchema::new(ctx.service_data());
-        let param = arg.into_vchain_type();
-        match schema.set_parameter(param) {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                error!("err when setting param: {:?}", e);
-                Err(Error::Unknown)
-            }
-        }
-    }
 }
 
 impl Service for VChainService {
+    fn initialize(&self, ctx: CallContext<'_>, params: Vec<u8>) -> Result<(), ExecutionError> {
+        let param = InitParam::from_bytes(params.into())
+            .map_err(DispatcherError::malformed_arguments)?
+            .into_vchain_type();
+        let mut schema = VChainSchema::new(ctx.service_data());
+        schema.set_parameter(param).expect("failed to set param");
+        Ok(())
+    }
+
     fn state_hash(&self, data: BlockchainData<&dyn Snapshot>) -> Vec<Hash> {
         VChainSchema::new(data.for_executing_service()).state_hash()
     }
