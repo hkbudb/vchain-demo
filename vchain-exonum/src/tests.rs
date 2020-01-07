@@ -1,10 +1,10 @@
 use crate::{
     service::VChainService,
-    transactions::{InitParam, TxAddObjs},
+    transactions::{InitParam, RawObject, TxAddObjs},
 };
 
 use exonum::{
-    api::{self, node::public::explorer::TransactionQuery},
+    api::node::public::explorer::TransactionQuery,
     crypto::{self, Hash, SecretKey},
     messages::{AnyTx, Verified},
     runtime::rust::Transaction,
@@ -22,18 +22,18 @@ struct VChainApi {
 }
 
 impl VChainApi {
-    // fn set_param(&self, input: TxSetParam) -> (Verified<AnyTx>, SecretKey) {
-    //     let (pubkey, key) = crypto::gen_keypair();
-    //     let tx = input.sign(INSTANCE_ID, pubkey, &key);
-    //     let tx_info: serde_json::Value = self
-    //         .inner
-    //         .public(ApiKind::Explorer)
-    //         .query(&json!({ "tx_body": tx }))
-    //         .post("v1/transactions")
-    //         .unwrap();
-    //     assert_eq!(tx_info, json!({ "tx_hash": tx.object_hash() }));
-    //     (tx, key)
-    // }
+    fn add_objs(&self, input: TxAddObjs) -> (Verified<AnyTx>, SecretKey) {
+        let (pubkey, key) = crypto::gen_keypair();
+        let tx = input.sign(INSTANCE_ID, pubkey, &key);
+        let tx_info: serde_json::Value = self
+            .inner
+            .public(ApiKind::Explorer)
+            .query(&json!({ "tx_body": tx }))
+            .post("v1/transactions")
+            .unwrap();
+        assert_eq!(tx_info, json!({ "tx_hash": tx.object_hash() }));
+        (tx, key)
+    }
 
     fn get_param(&self) -> vchain::Parameter {
         self.inner
@@ -69,7 +69,7 @@ fn create_testkit(param: InitParam) -> (TestKit, VChainApi) {
 
 #[test]
 fn test_initialize() {
-    let (mut testkit, api) = create_testkit(InitParam {
+    let (_, api) = create_testkit(InitParam {
         v_bit_len: vec![16],
         is_acc2: true,
         intra_index: true,
@@ -81,14 +81,32 @@ fn test_initialize() {
     assert_eq!(param.use_sk, false);
     assert_eq!(param.intra_index, true);
     assert_eq!(param.skip_list_max_level, 2);
-    // let tx_input = TxSetParam {
-    //     v_bit_len: vec![16],
-    //     is_acc2: true,
-    //     intra_index: true,
-    //     skip_list_max_level: 2,
-    // };
+}
 
-    // let (tx, _) = api.set_param(tx_input);
-    // testkit.create_block();
-    // api.assert_tx_status(tx.object_hash(), &json!({ "type": "success" }));
+#[test]
+fn test_add_objs() {
+    let (mut testkit, api) = create_testkit(InitParam {
+        v_bit_len: vec![16],
+        is_acc2: true,
+        intra_index: true,
+        skip_list_max_level: 2,
+    });
+    let tx_input = TxAddObjs {
+        objs: vec![
+            RawObject {
+                v_data: vec![1],
+                w_data: vec!["a".to_owned()],
+            },
+            RawObject {
+                v_data: vec![2],
+                w_data: vec!["b".to_owned()],
+            },
+        ],
+    };
+
+    let (tx1, _) = api.add_objs(tx_input.clone());
+    let (tx2, _) = api.add_objs(tx_input);
+    testkit.create_block();
+    api.assert_tx_status(tx1.object_hash(), &json!({ "type": "success" }));
+    api.assert_tx_status(tx2.object_hash(), &json!({ "type": "success" }));
 }
