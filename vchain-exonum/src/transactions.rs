@@ -14,6 +14,13 @@ pub struct RawObject {
 }
 
 impl RawObject {
+    pub fn create(input: &vchain::RawObject) -> Self {
+        Self {
+            v_data: input.v_data.clone(),
+            w_data: Vec::from_iter(input.w_data.iter().cloned()),
+        }
+    }
+
     pub fn into_vchain_type(self, block_id: IdType) -> vchain::RawObject {
         vchain::RawObject {
             block_id,

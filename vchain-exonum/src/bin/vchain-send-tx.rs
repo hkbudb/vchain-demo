@@ -1,12 +1,17 @@
 #[macro_use]
 extern crate log;
 
-use anyhow::{bail, Result};
+use anyhow::{Result};
 use exonum::{crypto, runtime::rust::Transaction};
-use serde_json::json;
-use std::path::{Path, PathBuf};
+use serde::{Serialize, Deserialize};
+use std::path::{PathBuf};
 use structopt::StructOpt;
-use vchain_exonum::transactions::{TxAddObjs};
+use vchain_exonum::transactions::{TxAddObjs, RawObject};
+use vchain::{IdType, load_raw_obj_from_file};
+use std::collections::{BTreeMap, };
+use serde_json::json;
+use std::thread::sleep;
+use std::time::Duration;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "simchain-build")]
@@ -20,29 +25,50 @@ struct Opts {
     api_address: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct TxResponse {
+    tx_hash: String,
+}
+
 #[actix_rt::main]
 async fn main() -> Result<()> {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
-
     let opts = Opts::from_args();
-    // let tx_param = TxSetParam {
-    //     v_bit_len: opts.bit_len.to_vec(),
-    //     is_acc2: opts.acc == acc::Type::ACC2,
-    //     intra_index: !opts.no_intra_index,
-    //     skip_list_max_level: opts.skip_list_max_level,
-    // };
-    // info!("param: {:?}", tx_param);
+    let tx_url = format!("{}/api/explorer/v1/transactions", opts.api_address);
 
-    // let keypair = crypto::gen_keypair();
-    // let tx = tx_param.sign(1, keypair.0, &keypair.1).into_raw();
+    info!("read data from {:?}", opts.input);
+    warn!("blk id from data file will be ignored");
 
-    // let client = reqwest::Client::new();
-    // let res = client
-    //     .post(format!("{}/api/explorer/v1/transactions", opts.api).as_str())
-    //     .json(&json!({ "tx_body": tx }))
-    //     .send()
-    //     .await?;
-    // dbg!(res);
+    let raw_objs = load_raw_obj_from_file(&opts.input)?;
+    let mut txs: BTreeMap<IdType, TxAddObjs> = BTreeMap::new();
+    for (&id, objs) in raw_objs.iter() {
+        let tx_objs: Vec<_> = objs.iter().map(|o| RawObject::create(o)).collect();
+        txs.insert(id, TxAddObjs { objs: tx_objs });
+    }
+
+    let keypair = crypto::gen_keypair();
+    let client = reqwest::Client::new();
+    for (_, tx) in txs.into_iter() {
+        let tx_message = tx.sign(1, keypair.0, &keypair.1).into_raw();
+        let res = client
+            .post(&tx_url)
+            .json(&json!({ "tx_body": tx_message }))
+            .send()
+            .await?;
+        debug!("response: {:?}", &res);
+        let tx_res = res.json::<TxResponse>().await?;
+        info!("tx_hash={:?}", tx_res.tx_hash);
+
+        loop {
+            let res2 = client.get(&tx_url).query(&[("hash", tx_res.tx_hash.clone())]).send().await?;
+            debug!("response: {:?}", &res2);
+            let tx_info = res2.json::<serde_json::Value>().await?;
+            if tx_info.get("type").unwrap() == &json!("committed") {
+                break;
+            }
+            sleep(Duration::from_millis(100));
+        }
+    }
 
     Ok(())
 }
