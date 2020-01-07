@@ -1,9 +1,10 @@
+use crate::transactions::RawObject;
 use anyhow::{Context, Error, Result};
 use exonum::crypto::Hash;
 use exonum_derive::{BinaryValue, FromAccess, ObjectHash};
 use exonum_merkledb::{
     access::{Access, RawAccessMut},
-    Entry, MapIndex, ProofMapIndex, ObjectHash as _,
+    Entry, ListIndex, MapIndex, ObjectHash as _, ProofMapIndex,
 };
 use exonum_proto::ProtobufConvert;
 use vchain::IdType;
@@ -47,6 +48,7 @@ pub(crate) struct VChainSchema<T: Access> {
     pub block_data: MapIndex<T::Base, IdType, BlockData>,
     pub intra_index_nodes: MapIndex<T::Base, IdType, IntraIndexNode>,
     pub skip_list_nodes: MapIndex<T::Base, IdType, SkipListNode>,
+    pub objs_in_this_round: ListIndex<T::Base, RawObject>,
 }
 
 impl<T: Access> VChainSchema<T> {
