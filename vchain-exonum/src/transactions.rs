@@ -53,3 +53,7 @@ impl TxSetParam {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug, ProtobufConvert, BinaryValue, ObjectHash)]
+#[protobuf_convert(source = "proto::Config")]
+pub struct Config;

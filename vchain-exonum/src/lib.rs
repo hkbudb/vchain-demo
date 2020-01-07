@@ -17,3 +17,6 @@ pub mod errors {
         Unknown = 1,
     }
 }
+
+#[cfg(test)]
+mod tests;

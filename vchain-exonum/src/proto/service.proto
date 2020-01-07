@@ -50,3 +50,5 @@ message TxSetParam
   bool intra_index = 3;
   int32 skip_list_max_level = 4;
 }
+
+message Config {}
