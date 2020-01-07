@@ -128,6 +128,16 @@ pub fn build_block<'a>(
             non_leaves.append(&mut new_non_leaves);
         }
 
+        // no objs in this block
+        if non_leaves.is_empty() {
+            let empty_set: MultiSet<SetElementType> = MultiSet::new();
+            let acc_value = multiset_to_g1(&empty_set, &param);
+            let node =
+                IntraIndexNonLeaf::create(block_id, empty_set, acc_value, smallvec![], smallvec![]);
+            non_leaves.push(node.clone());
+            chain.write_intra_index_node(IntraIndexNode::NonLeaf(Box::new(node)))?;
+        }
+
         let root = non_leaves.pop().unwrap();
         block_header.data_root = root.to_digest();
         BlockData {
