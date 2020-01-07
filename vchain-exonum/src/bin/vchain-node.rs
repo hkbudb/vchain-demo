@@ -1,26 +1,55 @@
 #[macro_use]
 extern crate log;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Error, Result};
 use exonum::{
     api::backends::actix::AllowOrigin,
     blockchain::{config::GenesisConfigBuilder, ConsensusConfig, ValidatorKeys},
+    crypto::{self, PublicKey, SecretKey},
     keys::Keys,
     node::{Node, NodeApiConfig, NodeConfig},
     runtime::{rust::ServiceFactory, RuntimeInstance},
 };
 use exonum_merkledb::{DbOptions, RocksDB};
-use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use vchain::acc;
 use vchain_exonum::{service::VChainService, transactions::InitParam};
 
-fn node_config(api_address: String, peer_address: String) -> Result<NodeConfig> {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct NodeKeys {
+    consensus_key: (PublicKey, SecretKey),
+    service_key: (PublicKey, SecretKey),
+}
+
+impl NodeKeys {
+    fn new() -> Self {
+        Self {
+            consensus_key: crypto::gen_keypair(),
+            service_key: crypto::gen_keypair(),
+        }
+    }
+
+    fn load_from_file(path: &Path) -> Result<Self> {
+        let data = fs::read_to_string(path)?;
+        serde_json::from_str::<Self>(&data).map_err(Error::msg)
+    }
+
+    fn save_to_file(&self, path: &Path) -> Result<()> {
+        let data = serde_json::to_string_pretty(self)?;
+        fs::write(path, data)?;
+        Ok(())
+    }
+}
+
+fn node_config(api_address: String, peer_address: String, keys: NodeKeys) -> Result<NodeConfig> {
     info!("api address: {}", &api_address);
     info!("peer address: {}", &peer_address);
 
-    let (consensus_public_key, consensus_secret_key) = exonum::crypto::gen_keypair();
-    let (service_public_key, service_secret_key) = exonum::crypto::gen_keypair();
+    let (consensus_public_key, consensus_secret_key) = keys.consensus_key;
+    let (service_public_key, service_secret_key) = keys.service_key;
 
     let consensus = ConsensusConfig {
         validator_keys: vec![ValidatorKeys {
@@ -80,9 +109,13 @@ fn parse_v_bit_len(input: &str) -> Result<Box<Vec<u32>>> {
 #[derive(StructOpt, Debug)]
 #[structopt(name = "vchain-node")]
 struct Opts {
-    /// db path
+    /// db path, should be a directory
     #[structopt(short = "-i", long, parse(from_os_str))]
     db: PathBuf,
+
+    /// discard old database
+    #[structopt(short = "-n", long)]
+    create_new: bool,
 
     /// API Address
     #[structopt(long, default_value = "127.0.0.1:5000")]
@@ -116,6 +149,7 @@ fn main() -> Result<()> {
     );
 
     let opts = Opts::from_args();
+
     let param = InitParam {
         v_bit_len: opts.bit_len.to_vec(),
         is_acc2: opts.acc == acc::Type::ACC2,
@@ -123,14 +157,32 @@ fn main() -> Result<()> {
         skip_list_max_level: opts.skip_list_max_level,
     };
     info!("param: {:?}", param);
-    info!("open db: {:?}", opts.db);
+
+    info!("db path: {:?}", opts.db);
+    if opts.create_new && opts.db.exists() {
+        fs::remove_dir_all(&opts.db)?;
+    }
+    fs::create_dir_all(&opts.db)?;
+
+    let key = match NodeKeys::load_from_file(&opts.db.join("keys.json")) {
+        Ok(key) => {
+            info!("found old key");
+            key
+        }
+        _ => {
+            warn!("create new key");
+            let key = NodeKeys::new();
+            key.save_to_file(&opts.db.join("keys.json"))?;
+            key
+        }
+    };
     let db = RocksDB::open(opts.db, &DbOptions::default()).map_err(anyhow::Error::msg)?;
 
     let external_runtimes: Vec<RuntimeInstance> = vec![];
     let service = VChainService;
     let artifact_id = service.artifact_id();
     let services = vec![service.into()];
-    let node_config = node_config(opts.api_address, opts.peer_address)?;
+    let node_config = node_config(opts.api_address, opts.peer_address, key)?;
     let genesis_config = GenesisConfigBuilder::with_consensus_config(node_config.consensus.clone())
         .with_artifact(artifact_id.clone())
         .with_instance(
