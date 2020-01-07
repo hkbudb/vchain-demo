@@ -12,7 +12,7 @@ use exonum::{
 use exonum_merkledb::{DbOptions, RocksDB};
 use std::path::PathBuf;
 use structopt::StructOpt;
-use vchain_exonum::contracts::VChainService;
+use vchain_exonum::service::VChainService;
 
 fn node_config(api_address: String, peer_address: String) -> Result<NodeConfig> {
     info!("api address: {}", &api_address);

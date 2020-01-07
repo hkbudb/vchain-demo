@@ -5,11 +5,11 @@ extern crate exonum_derive;
 #[macro_use]
 extern crate log;
 
-pub mod contracts;
+pub mod api;
 pub mod proto;
 pub mod schema;
+pub mod service;
 pub mod transactions;
-pub mod api;
 
 pub mod errors {
     #[derive(Debug, IntoExecutionError)]

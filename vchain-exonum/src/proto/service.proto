@@ -38,12 +38,12 @@ message RawObject
   repeated string w_data = 2;
 }
 
-message TxNewBlock
+message TxAddObjs
 {
   repeated RawObject objs = 1;
 }
 
-message TxParam
+message TxSetParam
 {
   repeated int32 v_bit_len = 1;
   bool is_acc2 = 2;

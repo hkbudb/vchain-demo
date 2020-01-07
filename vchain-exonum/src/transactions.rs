@@ -24,21 +24,21 @@ impl RawObject {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ProtobufConvert, BinaryValue, ObjectHash)]
-#[protobuf_convert(source = "proto::TxNewBlock")]
-pub struct TxNewBlock {
+#[protobuf_convert(source = "proto::TxAddObjs")]
+pub struct TxAddObjs {
     pub objs: Vec<RawObject>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ProtobufConvert, BinaryValue, ObjectHash)]
-#[protobuf_convert(source = "proto::TxParam")]
-pub struct TxParam {
+#[protobuf_convert(source = "proto::TxSetParam")]
+pub struct TxSetParam {
     pub v_bit_len: Vec<i32>,
     pub is_acc2: bool,
     pub intra_index: bool,
     pub skip_list_max_level: i32,
 }
 
-impl TxParam {
+impl TxSetParam {
     pub fn into_vchain_type(self) -> vchain::Parameter {
         vchain::Parameter {
             v_bit_len: self.v_bit_len.iter().map(|x| *x as u8).collect(),

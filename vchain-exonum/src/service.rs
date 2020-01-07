@@ -2,7 +2,7 @@ use crate::{
     api::VChainApi,
     errors::Error,
     schema::VChainSchema,
-    transactions::{TxNewBlock, TxParam},
+    transactions::{TxAddObjs, TxSetParam},
 };
 use exonum::{
     crypto::Hash,
@@ -16,8 +16,8 @@ use vchain::{Digest, Digestable, IdType, ReadInterface, WriteInterface};
 
 #[exonum_interface]
 pub trait VChainInterface {
-    fn new_block(&self, ctx: CallContext<'_>, arg: TxNewBlock) -> Result<(), Error>;
-    fn set_param(&self, ctx: CallContext<'_>, arg: TxParam) -> Result<(), Error>;
+    fn add_objs(&self, ctx: CallContext<'_>, arg: TxAddObjs) -> Result<(), Error>;
+    fn set_param(&self, ctx: CallContext<'_>, arg: TxSetParam) -> Result<(), Error>;
 }
 
 #[derive(Debug, ServiceFactory, ServiceDispatcher)]
@@ -26,7 +26,7 @@ pub trait VChainInterface {
 pub struct VChainService;
 
 impl VChainInterface for VChainService {
-    fn new_block(&self, ctx: CallContext<'_>, arg: TxNewBlock) -> Result<(), Error> {
+    fn add_objs(&self, ctx: CallContext<'_>, arg: TxAddObjs) -> Result<(), Error> {
         let core = ctx.data().for_core();
         let prev_block_id = core.height().0 as IdType;
         let block_id = prev_block_id + 1;
@@ -49,7 +49,7 @@ impl VChainInterface for VChainService {
         }
     }
 
-    fn set_param(&self, ctx: CallContext<'_>, arg: TxParam) -> Result<(), Error> {
+    fn set_param(&self, ctx: CallContext<'_>, arg: TxSetParam) -> Result<(), Error> {
         let mut schema = VChainSchema::new(ctx.service_data());
         let param = arg.into_vchain_type();
         match schema.set_parameter(param) {
