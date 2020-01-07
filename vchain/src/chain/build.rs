@@ -172,7 +172,10 @@ pub fn build_block<'a>(
                 if prev_blk_id == 0 {
                     break 'outer;
                 }
-                let prev_blk_header = chain.read_block_header(prev_blk_id)?;
+                let prev_blk_header = match chain.read_block_header(prev_blk_id) {
+                    Ok(header) => header,
+                    _ => break 'outer,
+                };
                 hash_to_skip = prev_blk_header.prev_hash;
                 let prev_blk = chain.read_block_data(prev_blk_id)?;
                 match param.acc_type {
