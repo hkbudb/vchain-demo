@@ -7,23 +7,24 @@ publish = false
 build = "build.rs"
 
 [dependencies]
+actix-rt = "1.0"
 anyhow = "1.0"
 bincode = "1.2"
 env_logger = "0.7"
 exonum = "0.13.0-rc.2"
 exonum-crypto = "0.13.0-rc.2"
-exonum-merkledb = "0.13.0-rc.2"
 exonum-derive = "0.13.0-rc.2"
+exonum-merkledb = "0.13.0-rc.2"
 exonum-proto = "0.13.0-rc.2"
-hex = "0.4"
+failure = "0.1"
 log = "0.4"
+protobuf = "2.8"
+reqwest = { version = "0.10", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_derive = "1.0"
 serde_json = "1.0"
 structopt = "0.3"
 vchain = { path = "../vchain" }
-protobuf = "2.8"
-failure = "0.1"
 
 [dev-dependencies]
 exonum-testkit = "0.13.0-rc.2"

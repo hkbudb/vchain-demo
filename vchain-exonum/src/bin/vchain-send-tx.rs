@@ -2,6 +2,8 @@
 extern crate log;
 
 use anyhow::{bail, Result};
+use exonum::{crypto, runtime::rust::Transaction};
+use serde_json::json;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use vchain::acc;
@@ -34,9 +36,9 @@ struct Opts {
     #[structopt(short, long, parse(from_os_str))]
     input: PathBuf,
 
-    /// peer address
-    #[structopt(short, long, default_value = "127.0.0.1:2000")]
-    peer: String,
+    /// api address
+    #[structopt(short, long, default_value = "http://127.0.0.1:5000")]
+    api: String,
 
     /// acc type to be used
     #[structopt(long, default_value = "acc2", parse(try_from_str = parse_acc))]
@@ -56,7 +58,8 @@ struct Opts {
     skip_list_max_level: i32,
 }
 
-fn main() -> Result<()> {
+#[actix_rt::main]
+async fn main() -> Result<()> {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
 
     let opts = Opts::from_args();
@@ -68,17 +71,16 @@ fn main() -> Result<()> {
     };
     info!("param: {:?}", tx_param);
 
-    use exonum::{
-        crypto,
-        messages::{SignedMessage, Verified},
-        runtime::rust::Transaction,
-    };
-    use hex::ToHex;
-
     let keypair = crypto::gen_keypair();
-    let message = tx_param.sign(1, keypair.0, &keypair.1).into_raw();
+    let tx = tx_param.sign(1, keypair.0, &keypair.1).into_raw();
 
-    println!("{:?}", message.encode_hex::<String>());
+    let client = reqwest::Client::new();
+    let res = client
+        .post(format!("{}/api/explorer/v1/transactions", opts.api).as_str())
+        .json(&json!({ "tx_body": tx }))
+        .send()
+        .await?;
+    dbg!(res);
 
     Ok(())
 }
