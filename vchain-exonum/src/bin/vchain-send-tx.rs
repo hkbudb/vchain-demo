@@ -14,7 +14,7 @@ use vchain::{load_raw_obj_from_file, IdType};
 use vchain_exonum::transactions::{RawObject, TxAddObjs};
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "simchain-build")]
+#[structopt(name = "vchain-send-tx")]
 struct Opts {
     /// input data path
     #[structopt(short, long, parse(from_os_str))]
