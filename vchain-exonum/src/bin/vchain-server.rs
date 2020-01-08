@@ -58,7 +58,7 @@ impl_get_info!(web_get_object, "obj");
 
 async fn web_query() -> impl Responder {
     HttpResponse::TemporaryRedirect()
-        .header("Location", format!("{}/get/query", get_api_address()))
+        .header("Location", format!("{}/query", get_api_address()))
         .finish()
 }
 
