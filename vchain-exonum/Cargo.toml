@@ -7,7 +7,9 @@ publish = false
 build = "build.rs"
 
 [dependencies]
+actix-cors = "0.2"
 actix-rt = "1.0"
+actix-web = "2.0"
 anyhow = "1.0"
 bincode = "1.2"
 env_logger = "0.7"
@@ -17,6 +19,7 @@ exonum-derive = "0.13.0-rc.2"
 exonum-merkledb = "0.13.0-rc.2"
 exonum-proto = "0.13.0-rc.2"
 failure = "0.1"
+futures = "0.3"
 log = "0.4"
 protobuf = "2.8"
 reqwest = { version = "0.10", features = ["json"] }
