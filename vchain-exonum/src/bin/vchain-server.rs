@@ -70,43 +70,47 @@ struct VerifyResponse {
 }
 
 struct LightChain {
-    param_api: String,
+    param: Parameter,
     blk_header_api: String,
 }
 
 impl LightChain {
-    fn new(api_address: &str) -> Self {
-        Self {
-            param_api: format!("{}/get/param", api_address),
+    fn create(api_address: &str) -> anyhow::Result<Self> {
+        let param_api = format!("{}/get/param", api_address);
+        let param = block_on(Self::get_param_from_remote(&param_api))?;
+        Ok(Self {
+            param,
             blk_header_api: format!("{}/get/blk_header", api_address),
-        }
+        })
+    }
+
+    async fn get_param_from_remote(address: &str) -> anyhow::Result<Parameter> {
+        reqwest::get(address)
+            .await?
+            .json::<Parameter>()
+            .await
+            .map_err(anyhow::Error::msg)
+    }
+
+    async fn get_blk_header_from_remote(address: &str, id: IdType) -> anyhow::Result<BlockHeader> {
+        let client = reqwest::Client::new();
+        client
+            .get(address)
+            .query(&[("id", id)])
+            .send()
+            .await?
+            .json::<BlockHeader>()
+            .await
+            .map_err(anyhow::Error::msg)
     }
 }
 
 impl ReadInterface for LightChain {
     fn get_parameter(&self) -> anyhow::Result<Parameter> {
-        async fn inner(address: &str) -> anyhow::Result<Parameter> {
-            reqwest::get(address)
-                .await?
-                .json::<Parameter>()
-                .await
-                .map_err(anyhow::Error::msg)
-        }
-        block_on(inner(&self.param_api))
+        Ok(self.param.clone())
     }
     fn read_block_header(&self, id: IdType) -> anyhow::Result<BlockHeader> {
-        async fn inner(address: &str, id: IdType) -> anyhow::Result<BlockHeader> {
-            let client = reqwest::Client::new();
-            client
-                .get(address)
-                .query(&[("id", id)])
-                .send()
-                .await?
-                .json::<BlockHeader>()
-                .await
-                .map_err(anyhow::Error::msg)
-        }
-        block_on(inner(&self.blk_header_api, id))
+        block_on(Self::get_blk_header_from_remote(&self.blk_header_api, id))
     }
     fn read_block_data(&self, _id: IdType) -> anyhow::Result<BlockData> {
         bail!("block data is not available in light node");
@@ -128,7 +132,7 @@ async fn web_verify(mut body: web::Payload) -> actix_web::Result<impl Responder>
         bytes.extend_from_slice(&item?);
     }
 
-    let lightnode = LightChain::new(get_api_address());
+    let lightnode = LightChain::create(get_api_address()).map_err(handle_err)?;
     let param = lightnode.get_parameter().map_err(handle_err)?;
     let (verify_result, time) = match param.acc_type {
         acc::Type::ACC1 => {
