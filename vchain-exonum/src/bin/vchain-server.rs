@@ -68,31 +68,29 @@ struct VerifyResponse {
     verify_time_in_ms: u64,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct LightChain {
-    param: Parameter,
+    param_api: String,
     blk_header_api: String,
 }
 
 impl LightChain {
-    async fn create(api_address: &str) -> anyhow::Result<Self> {
-        let param_api = format!("{}/get/param", api_address);
-        let param = reqwest::get(&param_api)
-            .await?
-            .json::<Parameter>()
-            .await
-            .map_err(anyhow::Error::msg)?;
-        Ok(Self {
-            param,
+    fn new(api_address: &str) -> Self {
+        Self {
+            param_api: format!("{}/get/param", api_address),
             blk_header_api: format!("{}/get/blk_header", api_address),
-        })
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl LightNodeInterface for LightChain {
     async fn lightnode_get_parameter(&self) -> anyhow::Result<Parameter> {
-        Ok(self.param.clone())
+        reqwest::get(&self.param_api)
+            .await?
+            .json::<Parameter>()
+            .await
+            .map_err(anyhow::Error::msg)
     }
 
     async fn lightnode_read_block_header(&self, id: IdType) -> anyhow::Result<BlockHeader> {
@@ -114,9 +112,7 @@ async fn web_verify(mut body: web::Payload) -> actix_web::Result<impl Responder>
         bytes.extend_from_slice(&item?);
     }
 
-    let lightnode = LightChain::create(get_api_address())
-        .await
-        .map_err(handle_err)?;
+    let lightnode = LightChain::new(get_api_address());
     let param = lightnode
         .lightnode_get_parameter()
         .await
@@ -167,9 +163,9 @@ async fn main() -> actix_web::Result<()> {
         App::new()
             .wrap(
                 Cors::new()
-                    .send_wildcard()
-                    .allowed_methods(vec!["GET", "POST"])
-                    .finish(),
+                .send_wildcard()
+                .allowed_methods(vec!["GET", "POST"])
+                .finish(),
             )
             .route("/get/param", web::get().to(web_get_param))
             .route("/get/blk_header/{id}", web::get().to(web_get_blk_header))
@@ -185,8 +181,8 @@ async fn main() -> actix_web::Result<()> {
             .route("/verify", web::post().to(web_verify))
     })
     .bind(opts.binding)?
-    .run()
-    .await?;
+        .run()
+        .await?;
 
     Ok(())
 }
