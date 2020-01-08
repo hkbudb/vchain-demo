@@ -31,7 +31,7 @@ fn fixed_base_pow<G: ProjectiveCurve>(
 
 pub fn bench_points_mul_sum(c: &mut Criterion) {
     const SAMPLES: usize = 1 << 10;
-    let mut rng = rand::rngs::StdRng::seed_from_u64(12345677890u64);
+    let mut rng = rand::rngs::StdRng::seed_from_u64(123_456_789u64);
 
     let v = (0..SAMPLES)
         .map(|_| Fr::rand(&mut rng).into_repr())
