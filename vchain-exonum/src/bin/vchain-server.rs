@@ -1,7 +1,7 @@
 use actix_cors::Cors;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use anyhow::bail;
-use futures::{executor::block_on, StreamExt};
+use futures::StreamExt;
 use serde::Serialize;
 use std::fmt;
 use structopt::StructOpt;
@@ -75,9 +75,9 @@ struct LightChain {
 }
 
 impl LightChain {
-    fn create(api_address: &str) -> anyhow::Result<Self> {
+    async fn create(api_address: &str) -> anyhow::Result<Self> {
         let param_api = format!("{}/get/param", api_address);
-        let param = block_on(Self::get_param_from_remote(&param_api))?;
+        let param = Self::get_param_from_remote(&param_api).await?;
         Ok(Self {
             param,
             blk_header_api: format!("{}/get/blk_header", api_address),
@@ -92,10 +92,13 @@ impl LightChain {
             .map_err(anyhow::Error::msg)
     }
 
-    async fn get_blk_header_from_remote(address: &str, id: IdType) -> anyhow::Result<BlockHeader> {
+    async fn get_blk_header_from_remote(
+        address: String,
+        id: IdType,
+    ) -> anyhow::Result<BlockHeader> {
         let client = reqwest::Client::new();
         client
-            .get(address)
+            .get(&address)
             .query(&[("id", id)])
             .send()
             .await?
@@ -110,7 +113,8 @@ impl ReadInterface for LightChain {
         Ok(self.param.clone())
     }
     fn read_block_header(&self, id: IdType) -> anyhow::Result<BlockHeader> {
-        block_on(Self::get_blk_header_from_remote(&self.blk_header_api, id))
+        let f = Self::get_blk_header_from_remote(self.blk_header_api.clone(), id);
+        todo!();
     }
     fn read_block_data(&self, _id: IdType) -> anyhow::Result<BlockData> {
         bail!("block data is not available in light node");
@@ -132,7 +136,9 @@ async fn web_verify(mut body: web::Payload) -> actix_web::Result<impl Responder>
         bytes.extend_from_slice(&item?);
     }
 
-    let lightnode = LightChain::create(get_api_address()).map_err(handle_err)?;
+    let lightnode = LightChain::create(get_api_address())
+        .await
+        .map_err(handle_err)?;
     let param = lightnode.get_parameter().map_err(handle_err)?;
     let (verify_result, time) = match param.acc_type {
         acc::Type::ACC1 => {
