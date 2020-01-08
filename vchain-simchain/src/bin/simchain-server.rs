@@ -98,17 +98,20 @@ async fn web_verify(mut body: web::Payload) -> actix_web::Result<impl Responder>
         bytes.extend_from_slice(&item?);
     }
 
-    let param = get_chain().get_parameter().map_err(handle_err)?;
+    let param = get_chain()
+        .lightnode_get_parameter()
+        .await
+        .map_err(handle_err)?;
     let (verify_result, time) = match param.acc_type {
         acc::Type::ACC1 => {
             let res: OverallResult<acc::Acc1Proof> =
                 serde_json::from_slice(&bytes).map_err(handle_err)?;
-            res.verify(get_chain())
+            res.verify(get_chain()).await
         }
         acc::Type::ACC2 => {
             let res: OverallResult<acc::Acc2Proof> =
                 serde_json::from_slice(&bytes).map_err(handle_err)?;
-            res.verify(get_chain())
+            res.verify(get_chain()).await
         }
     }
     .map_err(handle_err)?;

@@ -16,6 +16,7 @@ harness = false
 [dependencies]
 algebra = { git = "https://github.com/scipr-lab/zexe/", rev = "a6f6f1dcef038d2c21366883637940339a2a97bf", features = ["parallel"] }
 anyhow = "1.0"
+async-trait = "0.1"
 bincode = "1.2"
 blake2b_simd = "0.5"
 ff-fft = { git = "https://github.com/scipr-lab/zexe/", rev = "a6f6f1dcef038d2c21366883637940339a2a97bf" }
@@ -29,6 +30,7 @@ serde = { version = "1.0", features = ["derive"] }
 smallvec = { version = "1.1", features = ["serde"] }
 
 [dev-dependencies]
+actix-rt = "1.0"
 criterion = "0.3"
 env_logger = "0.7"
 rand = "0.7"

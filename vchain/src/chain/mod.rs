@@ -35,6 +35,12 @@ pub struct Parameter {
     pub skip_list_max_level: SkipLstLvlType,
 }
 
+#[async_trait::async_trait]
+pub trait LightNodeInterface {
+    async fn lightnode_get_parameter(&self) -> Result<Parameter>;
+    async fn lightnode_read_block_header(&self, id: IdType) -> Result<BlockHeader>;
+}
+
 pub trait ReadInterface {
     fn get_parameter(&self) -> Result<Parameter>;
     fn read_block_header(&self, id: IdType) -> Result<BlockHeader>;

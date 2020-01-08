@@ -254,17 +254,20 @@ pub struct OverallResult<AP: AccumulatorProof> {
 }
 
 impl<AP: AccumulatorProof + Serialize> OverallResult<AP> {
-    pub fn verify(&self, chain: &impl ReadInterface) -> Result<(VerifyResult, Duration)> {
+    pub async fn verify(
+        &self,
+        chain: &impl LightNodeInterface,
+    ) -> Result<(VerifyResult, Duration)> {
         info!("verify result");
         let cpu_timer = howlong::ProcessCPUTimer::new();
         let timer = howlong::HighResolutionTimer::new();
-        let res = self.inner_verify(chain)?;
+        let res = self.inner_verify(chain).await?;
         let time = timer.elapsed();
         info!("used time: {}", cpu_timer.elapsed());
         Ok((res, time))
     }
 
-    fn inner_verify(&self, chain: &impl ReadInterface) -> Result<VerifyResult> {
+    async fn inner_verify(&self, chain: &impl LightNodeInterface) -> Result<VerifyResult> {
         let query_exp = self.query.to_bool_exp(&self.v_bit_len);
         for (id, obj) in self.res_objs.iter() {
             if !query_exp.is_match(&obj.set_data) {
@@ -284,8 +287,14 @@ impl<AP: AccumulatorProof + Serialize> OverallResult<AP> {
             VerifyResult::Ok => {}
             x => return Ok(x),
         }
-        let prev_hash = chain.read_block_header(self.query.start_block)?.prev_hash;
-        let hash_root = chain.read_block_header(self.query.end_block)?.to_digest();
+        let prev_hash = chain
+            .lightnode_read_block_header(self.query.start_block)
+            .await?
+            .prev_hash;
+        let hash_root = chain
+            .lightnode_read_block_header(self.query.end_block)
+            .await?
+            .to_digest();
         if self
             .res_vo
             .vo_t
