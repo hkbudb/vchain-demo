@@ -5,6 +5,7 @@ use crate::digest::{blake2, concat_digest, concat_digest_ref, Digest, Digestable
 use crate::set::MultiSet;
 use algebra::curves::ProjectiveCurve;
 use core::ops::Deref;
+use futures::join;
 use howlong::Duration;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -287,14 +288,12 @@ impl<AP: AccumulatorProof + Serialize> OverallResult<AP> {
             VerifyResult::Ok => {}
             x => return Ok(x),
         }
-        let prev_hash = chain
-            .lightnode_read_block_header(self.query.start_block)
-            .await?
-            .prev_hash;
-        let hash_root = chain
-            .lightnode_read_block_header(self.query.end_block)
-            .await?
-            .to_digest();
+        let (blk1, blk2) = join!(
+            chain.lightnode_read_block_header(self.query.start_block),
+            chain.lightnode_read_block_header(self.query.end_block)
+        );
+        let prev_hash = blk1?.prev_hash;
+        let hash_root = blk2?.to_digest();
         if self
             .res_vo
             .vo_t

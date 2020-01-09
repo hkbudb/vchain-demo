@@ -20,6 +20,7 @@ async-trait = "0.1"
 bincode = "1.2"
 blake2b_simd = "0.5"
 ff-fft = { git = "https://github.com/scipr-lab/zexe/", rev = "a6f6f1dcef038d2c21366883637940339a2a97bf" }
+futures = "0.3"
 hex = "0.4"
 howlong = "0.1"
 itertools = "0.8"
