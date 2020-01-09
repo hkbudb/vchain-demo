@@ -8,9 +8,14 @@ use vchain::acc;
 use vchain::chain::*;
 
 static mut API_ADDRESS: Option<String> = None;
+static mut PARAM: Option<Parameter> = None;
 
 fn get_api_address() -> &'static str {
     unsafe { API_ADDRESS.as_ref().unwrap() }
+}
+
+fn get_param() -> &'static Parameter {
+    unsafe { PARAM.as_ref().unwrap() }
 }
 
 #[derive(Debug)]
@@ -29,9 +34,7 @@ fn handle_err<E: fmt::Display + fmt::Debug + Send + Sync + 'static>(e: E) -> MyE
 impl actix_web::error::ResponseError for MyErr {}
 
 async fn web_get_param() -> impl Responder {
-    HttpResponse::TemporaryRedirect()
-        .header("Location", format!("{}/get/param", get_api_address()))
-        .finish()
+    HttpResponse::Ok().json(get_param())
 }
 
 macro_rules! impl_get_info {
@@ -70,14 +73,14 @@ struct VerifyResponse {
 
 #[derive(Debug, Clone)]
 struct LightChain {
-    param_api: String,
+    param: Parameter,
     blk_header_api: String,
 }
 
 impl LightChain {
-    fn new(api_address: &str) -> Self {
+    fn new(param: Parameter, api_address: &str) -> Self {
         Self {
-            param_api: format!("{}/get/param", api_address),
+            param,
             blk_header_api: format!("{}/get/blk_header", api_address),
         }
     }
@@ -86,11 +89,7 @@ impl LightChain {
 #[async_trait::async_trait]
 impl LightNodeInterface for LightChain {
     async fn lightnode_get_parameter(&self) -> anyhow::Result<Parameter> {
-        reqwest::get(&self.param_api)
-            .await?
-            .json::<Parameter>()
-            .await
-            .map_err(anyhow::Error::msg)
+        Ok(self.param.clone())
     }
 
     async fn lightnode_read_block_header(&self, id: IdType) -> anyhow::Result<BlockHeader> {
@@ -112,12 +111,8 @@ async fn web_verify(mut body: web::Payload) -> actix_web::Result<impl Responder>
         bytes.extend_from_slice(&item?);
     }
 
-    let lightnode = LightChain::new(get_api_address());
-    let param = lightnode
-        .lightnode_get_parameter()
-        .await
-        .map_err(handle_err)?;
-    let (verify_result, time) = match param.acc_type {
+    let lightnode = LightChain::new(get_param().clone(), get_api_address());
+    let (verify_result, time) = match lightnode.param.acc_type {
         acc::Type::ACC1 => {
             let res: OverallResult<acc::Acc1Proof> =
                 serde_json::from_slice(&bytes).map_err(handle_err)?;
@@ -155,17 +150,24 @@ async fn main() -> actix_web::Result<()> {
     env_logger::init_from_env(env_logger::Env::default().filter_or("RUST_LOG", "info"));
     let opts = Opts::from_args();
     let api_address = format!("{}/api/services/vchain", opts.api_address);
+    let param = reqwest::get(&format!("{}/get/param", api_address))
+        .await
+        .map_err(handle_err)?
+        .json::<Parameter>()
+        .await
+        .map_err(handle_err)?;
     unsafe {
         API_ADDRESS = Some(api_address);
+        PARAM = Some(param);
     }
 
     HttpServer::new(|| {
         App::new()
             .wrap(
                 Cors::new()
-                .send_wildcard()
-                .allowed_methods(vec!["GET", "POST"])
-                .finish(),
+                    .send_wildcard()
+                    .allowed_methods(vec!["GET", "POST"])
+                    .finish(),
             )
             .route("/get/param", web::get().to(web_get_param))
             .route("/get/blk_header/{id}", web::get().to(web_get_blk_header))
@@ -181,8 +183,8 @@ async fn main() -> actix_web::Result<()> {
             .route("/verify", web::post().to(web_verify))
     })
     .bind(opts.binding)?
-        .run()
-        .await?;
+    .run()
+    .await?;
 
     Ok(())
 }
