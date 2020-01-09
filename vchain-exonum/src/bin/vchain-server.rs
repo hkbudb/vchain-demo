@@ -1,6 +1,10 @@
+#[macro_use]
+extern crate lazy_static;
+
 use actix_cors::Cors;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use futures::StreamExt;
+use futures::{lock::Mutex, StreamExt};
+use lru::LruCache;
 use serde::Serialize;
 use std::fmt;
 use structopt::StructOpt;
@@ -9,6 +13,11 @@ use vchain::chain::*;
 
 static mut API_ADDRESS: Option<String> = None;
 static mut PARAM: Option<Parameter> = None;
+
+lazy_static! {
+    static ref BLK_HEAD_CACHE: Mutex<LruCache<IdType, BlockHeader>> =
+        Mutex::new(LruCache::new(1000));
+}
 
 fn get_api_address() -> &'static str {
     unsafe { API_ADDRESS.as_ref().unwrap() }
@@ -84,15 +93,8 @@ impl LightChain {
             blk_header_api: format!("{}/get/blk_header", api_address),
         }
     }
-}
 
-#[async_trait::async_trait]
-impl LightNodeInterface for LightChain {
-    async fn lightnode_get_parameter(&self) -> anyhow::Result<Parameter> {
-        Ok(self.param.clone())
-    }
-
-    async fn lightnode_read_block_header(&self, id: IdType) -> anyhow::Result<BlockHeader> {
+    async fn get_block_header(&self, id: IdType) -> anyhow::Result<BlockHeader> {
         let client = reqwest::Client::new();
         client
             .get(&self.blk_header_api)
@@ -102,6 +104,22 @@ impl LightNodeInterface for LightChain {
             .json::<BlockHeader>()
             .await
             .map_err(anyhow::Error::msg)
+    }
+}
+
+#[async_trait::async_trait]
+impl LightNodeInterface for LightChain {
+    async fn lightnode_get_parameter(&self) -> anyhow::Result<Parameter> {
+        Ok(self.param.clone())
+    }
+
+    async fn lightnode_read_block_header(&self, id: IdType) -> anyhow::Result<BlockHeader> {
+        if let Some(header) = BLK_HEAD_CACHE.lock().await.get(&id).cloned() {
+            return Ok(header);
+        }
+        let header = self.get_block_header(id).await?;
+        BLK_HEAD_CACHE.lock().await.put(id, header.clone());
+        Ok(header)
     }
 }
 

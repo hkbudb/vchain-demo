@@ -22,6 +22,8 @@ exonum-proto = "0.13.0-rc.2"
 failure = "0.1"
 futures = "0.3"
 log = "0.4"
+lru = "0.4"
+lazy_static = "1.4"
 protobuf = "2.8"
 reqwest = { version = "0.10", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
