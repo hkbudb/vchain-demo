@@ -8,7 +8,7 @@
 
 ## SimChain
 
-### Create Block DB
+### Create Blockchain DB
 
 #### Input Format
 
@@ -32,7 +32,7 @@ For example
 
 Run `simchain-build` to build the database. You need to specify the bit length for each dimension of the v data. For example:
 
-```
+```sh
 ./target/release/simchain-build --bit-len 16,16 --skip-list-max-level 10 -i /path/to/data.txt -o /path/to/output_database
 ```
 
@@ -42,7 +42,7 @@ Run `simchain-build --help` for more info.
 
 Run `simchain-server` after the database is built. For example:
 
-```
+```sh
 ./target/release/simchain-server -b 127.0.0.1:8000 --db /path/to/database
 ```
 
@@ -115,3 +115,35 @@ The response is a JSON object like:
   "verify_time_in_ms": ...
 }
 ```
+
+## Real Chain
+
+### Start the Node
+
+Run `vchain-node` to start up a single node blockchain network. For example:
+
+```sh
+./vchain-node -- --bit-len 16,16 --skip-list-max-level 5 --db /path/to/database
+```
+
+Run `vchain-node --help` for more info.
+
+### Send TX
+
+Run `vchain-send-tx` to send TX to the node. The data input format is the same as that in the SimChain.
+
+```sh
+./vchain-send-tx -- -i /path/to/data.txt
+```
+
+Run `vchain-send-tx --help` for more info.
+
+### Start the Server
+
+Run `vchain-server` to start a server. The REST APIs are the same as those in the SimChain.
+
+```sh
+./vchain-server -b 127.0.0.1:8000
+```
+
+Run `vchain-server --help` for more info.
