@@ -172,7 +172,7 @@ async fn test_data1_acc1_flat() {
     .unwrap();
     let res: OverallResult<acc::Acc1Proof> = historical_query(&query, &chain).unwrap();
     assert_eq!(res.vo_stats.num_of_objs, 1);
-    assert_eq!(res.verify(&chain).await.unwrap().0, VerifyResult::Ok);
+    assert!(res.verify(&chain).await.unwrap().0.is_ok());
 }
 
 #[actix_rt::test]
@@ -199,7 +199,7 @@ async fn test_data1_acc1() {
     .unwrap();
     let res: OverallResult<acc::Acc1Proof> = historical_query(&query, &chain).unwrap();
     assert_eq!(res.vo_stats.num_of_objs, 1);
-    assert_eq!(res.verify(&chain).await.unwrap().0, VerifyResult::Ok);
+    assert!(res.verify(&chain).await.unwrap().0.is_ok());
 }
 
 #[actix_rt::test]
@@ -226,7 +226,7 @@ async fn test_data1_acc2_flat() {
     .unwrap();
     let res: OverallResult<acc::Acc2Proof> = historical_query(&query, &chain).unwrap();
     assert_eq!(res.vo_stats.num_of_objs, 1);
-    assert_eq!(res.verify(&chain).await.unwrap().0, VerifyResult::Ok);
+    assert!(res.verify(&chain).await.unwrap().0.is_ok());
 }
 
 #[actix_rt::test]
@@ -253,7 +253,7 @@ async fn test_data1_acc2() {
     .unwrap();
     let res: OverallResult<acc::Acc2Proof> = historical_query(&query, &chain).unwrap();
     assert_eq!(res.vo_stats.num_of_objs, 1);
-    assert_eq!(res.verify(&chain).await.unwrap().0, VerifyResult::Ok);
+    assert!(res.verify(&chain).await.unwrap().0.is_ok());
 }
 
 #[actix_rt::test]
@@ -280,7 +280,7 @@ async fn test_data2_acc2() {
     .unwrap();
     let res: OverallResult<acc::Acc2Proof> = historical_query(&query, &chain).unwrap();
     assert_eq!(res.vo_stats.num_of_objs, 4);
-    assert_eq!(res.verify(&chain).await.unwrap().0, VerifyResult::Ok);
+    assert!(res.verify(&chain).await.unwrap().0.is_ok());
 }
 
 #[actix_rt::test]
@@ -307,7 +307,7 @@ async fn test_data2_acc2_skip_list() {
     .unwrap();
     let res: OverallResult<acc::Acc2Proof> = historical_query(&query, &chain).unwrap();
     assert_eq!(res.vo_stats.num_of_objs, 4);
-    assert_eq!(res.verify(&chain).await.unwrap().0, VerifyResult::Ok);
+    assert!(res.verify(&chain).await.unwrap().0.is_ok());
 }
 
 #[actix_rt::test]
@@ -334,7 +334,7 @@ async fn test_data2_acc1_skip_list() {
     .unwrap();
     let res: OverallResult<acc::Acc1Proof> = historical_query(&query, &chain).unwrap();
     assert_eq!(res.vo_stats.num_of_objs, 4);
-    assert_eq!(res.verify(&chain).await.unwrap().0, VerifyResult::Ok);
+    assert!(res.verify(&chain).await.unwrap().0.is_ok());
 }
 
 #[actix_rt::test]
@@ -361,7 +361,6 @@ async fn test_data1_incomplete() {
     .unwrap();
     let mut res: OverallResult<acc::Acc2Proof> = historical_query(&query, &chain).unwrap();
     let new_range = Range([vec![Some(1)], vec![Some(2)]]);
-    res.res_vo.vo_acc.query_exp_sets = new_range.to_bool_exp(&param.v_bit_len).inner;
     res.query.q_range = Some(new_range);
-    assert_ne!(res.verify(&chain).await.unwrap().0, VerifyResult::Ok);
+    assert!(!res.verify(&chain).await.unwrap().0.is_ok());
 }

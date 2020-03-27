@@ -11,14 +11,29 @@ use smallvec::SmallVec;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub enum VerifyResult {
-    Ok,
+pub enum InvalidReason {
     InvalidSetIdx(usize),
     InvalidAccIdx(AccProofIdxType),
     InvalidAccProof(AccProofIdxType),
     InvalidMatchObj(IdType),
-    InvalidQuery,
     InvalidHash,
+}
+
+#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct VerifyResult(Vec<InvalidReason>);
+
+impl VerifyResult {
+    pub fn add(&mut self, reason: InvalidReason) {
+        self.0.push(reason);
+    }
+
+    pub fn append(&mut self, mut other: Self) {
+        self.0.append(&mut other.0);
+    }
+
+    pub fn is_ok(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -70,25 +85,35 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
     }
 
     pub fn verify(&self, query_exp: &BoolExp<SetElementType>) -> VerifyResult {
+        let mut result = VerifyResult::default();
         match AP::TYPE {
             acc::Type::ACC1 => {
                 for (&i, proofs) in self.proofs.iter() {
                     let query_acc = match query_exp.get(i) {
                         Some(set) => acc::Acc1::cal_acc_g1(set),
-                        None => return VerifyResult::InvalidSetIdx(i),
+                        None => {
+                            result.add(InvalidReason::InvalidSetIdx(i));
+                            continue;
+                        }
                     };
                     for (j, proof) in proofs.iter().enumerate() {
                         let acc_proof_idx = (i, j);
                         let proof = match proof.as_any().downcast_ref::<acc::Acc1Proof>() {
                             Some(proof) => proof,
-                            None => return VerifyResult::InvalidAccIdx(acc_proof_idx),
+                            None => {
+                                result.add(InvalidReason::InvalidAccIdx(acc_proof_idx));
+                                continue;
+                            }
                         };
                         let obj_acc = match self.get_object_acc(acc_proof_idx) {
                             Some(acc) => acc,
-                            None => return VerifyResult::InvalidAccIdx(acc_proof_idx),
+                            None => {
+                                result.add(InvalidReason::InvalidAccIdx(acc_proof_idx));
+                                continue;
+                            }
                         };
                         if !proof.verify(obj_acc, &query_acc) {
-                            return VerifyResult::InvalidAccProof(acc_proof_idx);
+                            result.add(InvalidReason::InvalidAccProof(acc_proof_idx));
                         }
                     }
                 }
@@ -97,29 +122,38 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
                 for (&i, proofs) in self.proofs.iter() {
                     let query_acc = match query_exp.get(i) {
                         Some(set) => acc::Acc2::cal_acc_g2(set),
-                        None => return VerifyResult::InvalidSetIdx(i),
+                        None => {
+                            result.add(InvalidReason::InvalidSetIdx(i));
+                            continue;
+                        }
                     };
                     let obj_accs = match self.object_accs.get(&i) {
                         Some(accs) => accs,
-                        None => return VerifyResult::InvalidSetIdx(i),
+                        None => {
+                            result.add(InvalidReason::InvalidSetIdx(i));
+                            continue;
+                        }
                     };
                     debug_assert_eq!(proofs.len(), 1);
                     let acc_proof_idx = (i, 0);
                     let proof = match proofs[0].as_any().downcast_ref::<acc::Acc2Proof>() {
                         Some(proof) => proof,
-                        None => return VerifyResult::InvalidAccIdx(acc_proof_idx),
+                        None => {
+                            result.add(InvalidReason::InvalidAccIdx(acc_proof_idx));
+                            continue;
+                        }
                     };
                     let mut g1 = G1Projective::zero();
                     for obj_acc in obj_accs.iter() {
                         g1.add_assign_mixed(&obj_acc.0);
                     }
                     if !proof.verify(&g1.into_affine(), &query_acc) {
-                        return VerifyResult::InvalidAccProof(acc_proof_idx);
+                        result.add(InvalidReason::InvalidAccProof(acc_proof_idx));
                     }
                 }
             }
         }
-        VerifyResult::Ok
+        result
     }
 
     pub fn add_proof(
@@ -134,10 +168,7 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
 
         match AP::TYPE {
             acc::Type::ACC1 => {
-                let proof_ptr = self
-                    .proofs
-                    .entry(mismatch_idx)
-                    .or_insert_with(Vec::new);
+                let proof_ptr = self.proofs.entry(mismatch_idx).or_insert_with(Vec::new);
                 proof_ptr.push(proof);
                 let acc_ptr = self
                     .object_accs
@@ -148,10 +179,7 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
                 Ok((mismatch_idx, proof_ptr.len() - 1))
             }
             acc::Type::ACC2 => {
-                let proof_ptr = self
-                    .proofs
-                    .entry(mismatch_idx)
-                    .or_insert_with(Vec::new);
+                let proof_ptr = self.proofs.entry(mismatch_idx).or_insert_with(Vec::new);
                 let acc_ptr = self
                     .object_accs
                     .entry(mismatch_idx)
@@ -260,16 +288,15 @@ impl<AP: AccumulatorProof + Serialize> OverallResult<AP> {
     }
 
     async fn inner_verify(&self, chain: &impl LightNodeInterface) -> Result<VerifyResult> {
+        let mut result = VerifyResult::default();
         let query_exp = self.query.to_bool_exp(&self.v_bit_len);
         for (id, obj) in self.res_objs.iter() {
             if !query_exp.is_match(&obj.set_data) {
-                return Ok(VerifyResult::InvalidMatchObj(*id));
+                result.add(InvalidReason::InvalidMatchObj(*id));
             }
         }
-        match self.res_vo.vo_acc.verify(&query_exp) {
-            VerifyResult::Ok => {}
-            x => return Ok(x),
-        }
+        let acc_res = self.res_vo.vo_acc.verify(&query_exp);
+        result.append(acc_res);
         let (blk1, blk2) = join!(
             chain.lightnode_read_block_header(self.query.start_block),
             chain.lightnode_read_block_header(self.query.end_block)
@@ -282,9 +309,9 @@ impl<AP: AccumulatorProof + Serialize> OverallResult<AP> {
             .compute_digest(&self.res_objs, &self.res_vo.vo_acc, &prev_hash)
             != Some(hash_root)
         {
-            return Ok(VerifyResult::InvalidHash);
+            result.add(InvalidReason::InvalidHash);
         }
-        Ok(VerifyResult::Ok)
+        Ok(result)
     }
 
     pub fn compute_stats(&mut self) -> Result<()> {

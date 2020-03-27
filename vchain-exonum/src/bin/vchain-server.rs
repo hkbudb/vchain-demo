@@ -144,7 +144,7 @@ async fn web_verify(mut body: web::Payload) -> actix_web::Result<impl Responder>
     }
     .map_err(handle_err)?;
     let response = VerifyResponse {
-        pass: verify_result == VerifyResult::Ok,
+        pass: verify_result.is_ok(),
         detail: verify_result,
         verify_time_in_ms: time.as_millis() as u64,
     };
