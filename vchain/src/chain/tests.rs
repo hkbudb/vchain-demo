@@ -336,3 +336,32 @@ async fn test_data2_acc1_skip_list() {
     assert_eq!(res.vo_stats.num_of_objs, 4);
     assert_eq!(res.verify(&chain).await.unwrap().0, VerifyResult::Ok);
 }
+
+#[actix_rt::test]
+async fn test_data1_incomplete() {
+    init_logger();
+    let mut chain = FakeInMemChain::new();
+    let param = Parameter {
+        v_bit_len: vec![3],
+        acc_type: acc::Type::ACC2,
+        use_sk: true,
+        intra_index: true,
+        skip_list_max_level: 2,
+    };
+    chain.build_chain(TEST_DATA_1, &param).unwrap();
+    let query = serde_json::from_value::<Query>(json!({
+        "start_block": 1,
+        "end_block": 2,
+        "range": [
+            [1],
+            [1],
+        ],
+        "bool": null,
+    }))
+    .unwrap();
+    let mut res: OverallResult<acc::Acc2Proof> = historical_query(&query, &chain).unwrap();
+    let new_range = Range([vec![Some(1)], vec![Some(2)]]);
+    res.res_vo.vo_acc.query_exp_sets = new_range.to_bool_exp(&param.v_bit_len).inner;
+    res.query.q_range = Some(new_range);
+    assert_ne!(res.verify(&chain).await.unwrap().0, VerifyResult::Ok);
+}
