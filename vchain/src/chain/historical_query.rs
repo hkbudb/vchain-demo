@@ -57,7 +57,7 @@ pub fn historical_query<AP: AccumulatorProof + Serialize>(
                     if let Some(mismatch_idx) = mismatch_idx {
                         jmp_level = Some(lvl as SkipLstLvlType);
                         let proof_idx = res.res_vo.vo_acc.add_proof(
-                            &query_exp.inner[mismatch_idx],
+                            mismatch_idx,
                             &query_exp_digest_set[mismatch_idx],
                             &DigestSet::new(&jmp_node.set_data),
                             &jmp_node.acc_value,
@@ -139,7 +139,7 @@ fn query_block_intra_index<AP: AccumulatorProof>(
         let mismatch_idx = query_exp.mismatch_idx(&node.set_data);
         if let Some(mismatch_idx) = mismatch_idx {
             let proof_idx = res.res_vo.vo_acc.add_proof(
-                &query_exp.inner[mismatch_idx],
+                mismatch_idx,
                 &query_exp_digest_set[mismatch_idx],
                 &DigestSet::new(&node.set_data),
                 &node.acc_value,
@@ -168,7 +168,7 @@ fn query_block_intra_index<AP: AccumulatorProof>(
                         let mismatch_idx = query_exp.mismatch_idx(&n.set_data);
                         if let Some(mismatch_idx) = mismatch_idx {
                             let proof_idx = res.res_vo.vo_acc.add_proof(
-                                &query_exp.inner[mismatch_idx],
+                                mismatch_idx,
                                 &query_exp_digest_set[mismatch_idx],
                                 &DigestSet::new(&n.set_data),
                                 &n.acc_value,
@@ -219,7 +219,7 @@ fn query_block_no_intra_index<AP: AccumulatorProof>(
         let mismatch_idx = query_exp.mismatch_idx(&obj.set_data);
         if let Some(mismatch_idx) = mismatch_idx {
             let proof_idx = res.res_vo.vo_acc.add_proof(
-                &query_exp.inner[mismatch_idx],
+                mismatch_idx,
                 &query_exp_digest_set[mismatch_idx],
                 &DigestSet::new(&obj.set_data),
                 &obj.acc_value,

@@ -2,12 +2,10 @@ use super::*;
 use crate::acc::curve::{G1Affine, G1Projective};
 use crate::acc::{self, Accumulator, AccumulatorProof};
 use crate::digest::{blake2, concat_digest, concat_digest_ref, Digest, Digestable};
-use crate::set::MultiSet;
 use algebra::curves::ProjectiveCurve;
 use core::ops::Deref;
 use futures::join;
 use howlong::Duration;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::collections::HashMap;
@@ -48,11 +46,11 @@ impl Deref for ResultObjs {
 pub struct ObjAcc(#[serde(with = "crate::acc::serde_impl")] pub G1Affine);
 
 // set_idx, [  acc_idx / proof_idx ]
+// query_set = query.to_bool_exp(...)[set_idx]
 pub type AccProofIdxType = (usize, usize);
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ResultVOAcc<AP: AccumulatorProof> {
-    pub query_exp_sets: Vec<MultiSet<SetElementType>>,
     // <query_exp_set idx, [proof ...]>
     pub proofs: HashMap<usize, Vec<AP>>,
     // <query_exp_set idx, [obj_acc ...]>
@@ -62,20 +60,20 @@ pub struct ResultVOAcc<AP: AccumulatorProof> {
 impl<AP: AccumulatorProof> ResultVOAcc<AP> {
     pub fn new() -> Self {
         Self {
-            query_exp_sets: Vec::new(),
             proofs: HashMap::new(),
             object_accs: HashMap::new(),
         }
     }
+
     pub fn get_object_acc(&self, proof_idx: AccProofIdxType) -> Option<&G1Affine> {
         Some(&self.object_accs.get(&proof_idx.0)?.get(proof_idx.1)?.0)
     }
 
-    pub fn verify(&self) -> VerifyResult {
+    pub fn verify(&self, query_exp: &BoolExp<SetElementType>) -> VerifyResult {
         match AP::TYPE {
             acc::Type::ACC1 => {
                 for (&i, proofs) in self.proofs.iter() {
-                    let query_acc = match self.query_exp_sets.get(i) {
+                    let query_acc = match query_exp.get(i) {
                         Some(set) => acc::Acc1::cal_acc_g1(set),
                         None => return VerifyResult::InvalidSetIdx(i),
                     };
@@ -97,7 +95,7 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
             }
             acc::Type::ACC2 => {
                 for (&i, proofs) in self.proofs.iter() {
-                    let query_acc = match self.query_exp_sets.get(i) {
+                    let query_acc = match query_exp.get(i) {
                         Some(set) => acc::Acc2::cal_acc_g2(set),
                         None => return VerifyResult::InvalidSetIdx(i),
                     };
@@ -126,18 +124,11 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
 
     pub fn add_proof(
         &mut self,
-        query_exp_set: &MultiSet<SetElementType>,
+        mismatch_idx: usize,
         query_exp_set_d: &acc::DigestSet,
         object_set_d: &acc::DigestSet,
         object_acc: &G1Affine,
     ) -> Result<AccProofIdxType> {
-        let query_exp_set_idx = match self.query_exp_sets.iter().position(|s| s == query_exp_set) {
-            Some(idx) => idx,
-            None => {
-                self.query_exp_sets.push(query_exp_set.clone());
-                self.query_exp_sets.len() - 1
-            }
-        };
         let object_acc = ObjAcc(*object_acc);
         let proof = AP::gen_proof(object_set_d, query_exp_set_d)?;
 
@@ -145,25 +136,25 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
             acc::Type::ACC1 => {
                 let proof_ptr = self
                     .proofs
-                    .entry(query_exp_set_idx)
+                    .entry(mismatch_idx)
                     .or_insert_with(Vec::new);
                 proof_ptr.push(proof);
                 let acc_ptr = self
                     .object_accs
-                    .entry(query_exp_set_idx)
+                    .entry(mismatch_idx)
                     .or_insert_with(Vec::new);
                 acc_ptr.push(object_acc);
                 debug_assert_eq!(proof_ptr.len(), acc_ptr.len());
-                Ok((query_exp_set_idx, proof_ptr.len() - 1))
+                Ok((mismatch_idx, proof_ptr.len() - 1))
             }
             acc::Type::ACC2 => {
                 let proof_ptr = self
                     .proofs
-                    .entry(query_exp_set_idx)
+                    .entry(mismatch_idx)
                     .or_insert_with(Vec::new);
                 let acc_ptr = self
                     .object_accs
-                    .entry(query_exp_set_idx)
+                    .entry(mismatch_idx)
                     .or_insert_with(Vec::new);
                 acc_ptr.push(object_acc);
                 if proof_ptr.is_empty() {
@@ -172,7 +163,7 @@ impl<AP: AccumulatorProof> ResultVOAcc<AP> {
                     debug_assert_eq!(proof_ptr.len(), 1);
                     proof_ptr[0].combine_proof(&proof)?;
                 }
-                Ok((query_exp_set_idx, acc_ptr.len() - 1))
+                Ok((mismatch_idx, acc_ptr.len() - 1))
             }
         }
     }
@@ -275,16 +266,7 @@ impl<AP: AccumulatorProof + Serialize> OverallResult<AP> {
                 return Ok(VerifyResult::InvalidMatchObj(*id));
             }
         }
-        if !self
-            .res_vo
-            .vo_acc
-            .query_exp_sets
-            .par_iter()
-            .all(|s1| query_exp.inner.iter().any(|s2| s1 == s2))
-        {
-            return Ok(VerifyResult::InvalidQuery);
-        }
-        match self.res_vo.vo_acc.verify() {
+        match self.res_vo.vo_acc.verify(&query_exp) {
             VerifyResult::Ok => {}
             x => return Ok(x),
         }
