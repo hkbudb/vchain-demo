@@ -2,6 +2,7 @@ use super::*;
 use crate::acc::curve::{G1Affine, G1Projective};
 use crate::acc::{self, Accumulator, AccumulatorProof};
 use crate::digest::{blake2, concat_digest, concat_digest_ref, Digest, Digestable};
+use crate::set::MultiSet;
 use algebra::curves::ProjectiveCurve;
 use core::ops::Deref;
 use futures::join;

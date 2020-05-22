@@ -19,7 +19,7 @@ pub fn historical_query<AP: AccumulatorProof + Serialize>(
         res_objs: ResultObjs::new(),
         res_vo: ResultVO::<AP>::new(),
         query: q.clone(),
-        query_exp_set: query_exp,
+        query_exp_set: query_exp.inner.clone(),
         query_time_in_ms: 0,
         v_bit_len: param.v_bit_len.clone(),
         vo_size: 0,
