@@ -14,16 +14,17 @@ pub fn historical_query<AP: AccumulatorProof + Serialize>(
     let cpu_timer = howlong::ProcessCPUTimer::new();
     let timer = howlong::HighResolutionTimer::new();
 
+    let query_exp = q.to_bool_exp(&param.v_bit_len);
     let mut res = OverallResult {
         res_objs: ResultObjs::new(),
         res_vo: ResultVO::<AP>::new(),
         query: q.clone(),
+        query_exp_set: query_exp,
         query_time_in_ms: 0,
         v_bit_len: param.v_bit_len.clone(),
         vo_size: 0,
         vo_stats: VOStatistic::default(),
     };
-    let query_exp = q.to_bool_exp(&param.v_bit_len);
     let query_exp_digest_set = query_exp
         .inner
         .iter()
