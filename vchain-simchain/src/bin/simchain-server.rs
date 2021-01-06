@@ -37,7 +37,7 @@ impl actix_web::error::ResponseError for MyErr {}
 macro_rules! impl_get_info {
     ($name: ident, $func: ident) => {
         async fn $name(req: web::Path<(IdType,)>) -> actix_web::Result<impl Responder> {
-            let id = req.0;
+            let id = req.into_inner().0;
             info!("call {} with {}", stringify!($func), id);
             let data = get_chain().$func(id).map_err(handle_err)?;
             Ok(HttpResponse::Ok().json(data))
@@ -52,7 +52,7 @@ impl_get_info!(web_get_skip_list_node, read_skip_list_node);
 impl_get_info!(web_get_object, read_object);
 
 async fn web_get_index_node(req: web::Path<(IdType,)>) -> actix_web::Result<impl Responder> {
-    let id = req.0;
+    let id = req.into_inner().0;
     info!("call read_index_node with {}", id);
     match get_chain().read_intra_index_node(id) {
         Ok(data) => Ok(HttpResponse::Ok().json(data)),
@@ -147,10 +147,9 @@ async fn main() -> actix_web::Result<()> {
     HttpServer::new(|| {
         App::new()
             .wrap(
-                Cors::new()
+                Cors::default()
                     .send_wildcard()
-                    .allowed_methods(vec!["GET", "POST"])
-                    .finish(),
+                    .allowed_methods(vec!["GET", "POST"]),
             )
             .route("/get/param", web::get().to(web_get_param))
             .route("/get/blk_header/{id}", web::get().to(web_get_blk_header))

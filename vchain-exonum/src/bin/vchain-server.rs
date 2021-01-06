@@ -49,7 +49,7 @@ async fn web_get_param() -> impl Responder {
 macro_rules! impl_get_info {
     ($name: ident, $url: expr) => {
         async fn $name(req: web::Path<(IdType,)>) -> impl Responder {
-            let id = req.0;
+            let id = req.into_inner().0;
             HttpResponse::TemporaryRedirect()
                 .header(
                     "Location",
@@ -182,10 +182,9 @@ async fn main() -> actix_web::Result<()> {
     HttpServer::new(|| {
         App::new()
             .wrap(
-                Cors::new()
+                Cors::default()
                     .send_wildcard()
-                    .allowed_methods(vec!["GET", "POST"])
-                    .finish(),
+                    .allowed_methods(vec!["GET", "POST"]),
             )
             .route("/get/param", web::get().to(web_get_param))
             .route("/get/blk_header/{id}", web::get().to(web_get_blk_header))
