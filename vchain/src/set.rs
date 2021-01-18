@@ -9,6 +9,7 @@ use serde::{
 use std::collections::HashMap;
 
 pub trait SetElement: Digestible + Clone + Send + Sync + Eq + PartialEq + core::hash::Hash {}
+
 impl<T> SetElement for T where
     T: Digestible + Clone + Send + Sync + Eq + PartialEq + core::hash::Hash
 {
@@ -110,21 +111,21 @@ impl<T: SetElement> FromIterator<(T, u32)> for MultiSet<T> {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct ElementTuple<T> {
+    obj: T,
+    cnt: u32,
+}
+
 impl<T: SetElement + Serialize> Serialize for MultiSet<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         if serializer.is_human_readable() {
-            #[derive(Serialize)]
-            struct Element<T: Serialize + Clone> {
-                obj: T,
-                cnt: u32,
-            }
-
             let mut seq = serializer.serialize_seq(Some(self.len()))?;
             for (k, v) in self.iter() {
-                seq.serialize_element(&Element {
+                seq.serialize_element(&ElementTuple {
                     obj: k.clone(),
                     cnt: *v,
                 })?;
@@ -144,13 +145,7 @@ impl<'de, T: SetElement + Deserialize<'de>> Deserialize<'de> for MultiSet<T> {
         D: Deserializer<'de>,
     {
         if deserializer.is_human_readable() {
-            #[derive(Deserialize)]
-            struct Element<T> {
-                obj: T,
-                cnt: u32,
-            }
-
-            let inner: Vec<Element<T>> = Deserialize::deserialize(deserializer)?;
+            let inner: Vec<ElementTuple<T>> = Deserialize::deserialize(deserializer)?;
             Ok(Self::from_iter(inner.into_iter().map(|v| (v.obj, v.cnt))))
         } else {
             let inner: HashMap<T, u32> = Deserialize::deserialize(deserializer)?;
