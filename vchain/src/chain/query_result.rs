@@ -1,9 +1,10 @@
 use super::*;
-use crate::acc::curve::{G1Affine, G1Projective};
 use crate::acc::{self, Accumulator, AccumulatorProof};
+use crate::acc::{G1Affine, G1Projective};
 use crate::digest::{blake2, concat_digest, concat_digest_ref, Digest, Digestible};
 use crate::set::MultiSet;
-use algebra::curves::ProjectiveCurve;
+use ark_ec::ProjectiveCurve;
+use ark_ff::Zero;
 use core::ops::Deref;
 use futures::join;
 use howlong::Duration;

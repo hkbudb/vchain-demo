@@ -1,11 +1,9 @@
-use algebra::{Field, PrimeField, ProjectiveCurve};
+use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
+use ark_ff::{Field, One, PrimeField, ToBytes, Zero};
 use core::str::FromStr;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use vchain::acc::utils::*;
-use vchain::acc::{
-    curve::{G1Projective as G1, G2Projective as G2},
-    field::Fr,
-};
+use vchain::acc::{Fr, G1Projective as G1, G2Projective as G2};
 
 pub fn bench_pow_g1(c: &mut Criterion) {
     let mut group = c.benchmark_group("pow_g1");

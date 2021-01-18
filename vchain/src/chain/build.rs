@@ -3,7 +3,7 @@
 use super::*;
 use crate::digest::{concat_digest, concat_digest_ref, Digest, Digestible};
 use crate::set::MultiSet;
-use algebra::curves::{AffineCurve, ProjectiveCurve};
+use ark_ec::{AffineCurve, ProjectiveCurve};
 use smallvec::smallvec;
 
 pub fn build_block<'a>(

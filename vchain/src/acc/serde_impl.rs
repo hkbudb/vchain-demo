@@ -1,4 +1,4 @@
-use algebra::AffineCurve;
+use ark_ec::AffineCurve;
 use core::marker::PhantomData;
 use serde::{
     de::{Deserializer, Visitor},
@@ -7,7 +7,7 @@ use serde::{
 
 pub fn serialize<S: Serializer, C: AffineCurve>(c: &C, s: S) -> Result<S::Ok, S::Error> {
     let mut buf = Vec::<u8>::new();
-    c.write(&mut buf)
+    c.serialize(&mut buf)
         .map_err(<S::Error as serde::ser::Error>::custom)?;
     if s.is_human_readable() {
         s.serialize_str(&hex::encode(&buf))
@@ -31,7 +31,7 @@ pub fn deserialize<'de, D: Deserializer<'de>, C: AffineCurve>(d: D) -> Result<C,
 
         fn visit_str<E: DeError>(self, value: &str) -> Result<C, E> {
             let data = hex::decode(value).map_err(E::custom)?;
-            C::read(&data[..]).map_err(E::custom)
+            C::deserialize(&data[..]).map_err(E::custom)
         }
     }
 
@@ -45,7 +45,7 @@ pub fn deserialize<'de, D: Deserializer<'de>, C: AffineCurve>(d: D) -> Result<C,
         }
 
         fn visit_bytes<E: DeError>(self, v: &[u8]) -> Result<C, E> {
-            C::read(v).map_err(E::custom)
+            C::deserialize(v).map_err(E::custom)
         }
     }
 
@@ -59,7 +59,7 @@ pub fn deserialize<'de, D: Deserializer<'de>, C: AffineCurve>(d: D) -> Result<C,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::acc::curve::{G1Affine, G2Affine};
+    use ark_bls12_381::{G1Affine, G2Affine};
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]

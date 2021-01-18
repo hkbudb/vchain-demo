@@ -1,25 +1,20 @@
-pub use algebra::curves::bls12_381 as curve;
-pub use algebra::fields::bls12_381 as field;
-pub use curve::Bls12_381 as Curve;
-
 pub mod digest_set;
 pub mod serde_impl;
 pub mod utils;
 
-pub use digest_set::DigestSet;
+pub use ark_bls12_381::{
+    Bls12_381 as Curve, Fq12, Fr, G1Affine, G1Projective, G2Affine, G2Projective,
+};
+pub type DigestSet = digest_set::DigestSet<Fr>;
 
 use crate::digest::{Digest, Digestible};
 use crate::set::{MultiSet, SetElement};
-use algebra::{
-    bytes::ToBytes, msm::VariableBaseMSM, AffineCurve, Field, PairingCurve, PairingEngine,
-    PrimeField, ProjectiveCurve,
-};
 use anyhow::{self, bail, ensure, Context};
+use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
+use ark_ff::{Field, One, PrimeField, ToBytes, Zero};
+use ark_poly::{univariate::DensePolynomial, Polynomial};
 use core::any::Any;
 use core::str::FromStr;
-use curve::{G1Affine, G1Projective, G2Affine, G2Projective};
-use ff_fft::DensePolynomial;
-use field::{Fq12, Fr};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use utils::{xgcd, FixedBaseCurvePow, FixedBaseScalarPow};
@@ -205,8 +200,8 @@ impl AccumulatorProof for Acc1Proof {
 impl Acc1Proof {
     pub fn verify(&self, acc1: &G1Affine, acc2: &G1Affine) -> bool {
         Curve::product_of_pairings(&[
-            (&acc1.prepare(), &self.f1.prepare()),
-            (&acc2.prepare(), &self.f2.prepare()),
+            ((*acc1).into(), self.f1.into()),
+            ((*acc2).into(), self.f2.into()),
         ]) == *E_G_G
     }
 }

@@ -1,4 +1,3 @@
-use blake2b_simd;
 use core::fmt;
 use serde::{
     de::{Deserializer, SeqAccess, Visitor},

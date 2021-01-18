@@ -1,9 +1,5 @@
 use super::{IdType, Parameter, RawObject, SetElementType, SkipLstLvlType};
-use crate::acc::{
-    self,
-    curve::{G1Affine, G2Affine},
-    Accumulator,
-};
+use crate::acc::{self, Accumulator, G1Affine, G2Affine};
 use crate::set::MultiSet;
 use anyhow::{Context, Error, Result};
 use std::collections::{BTreeMap, HashSet};

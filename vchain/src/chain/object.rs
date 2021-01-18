@@ -1,5 +1,5 @@
 use super::{multiset_to_g1, IdType, Parameter};
-use crate::acc::curve::G1Affine;
+use crate::acc::G1Affine;
 use crate::digest::{blake2, Digest, Digestible};
 use crate::set::MultiSet;
 use core::sync::atomic::{AtomicU64, Ordering};

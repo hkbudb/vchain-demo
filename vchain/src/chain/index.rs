@@ -1,5 +1,5 @@
 use super::{IdType, SetElementType, SkipLstLvlType};
-use crate::acc::curve::G1Affine;
+use crate::acc::G1Affine;
 use crate::digest::{blake2, concat_digest_ref, Digest, Digestible};
 use crate::set::MultiSet;
 use core::sync::atomic::{AtomicU64, Ordering};

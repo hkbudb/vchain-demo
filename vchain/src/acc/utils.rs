@@ -1,46 +1,55 @@
-use super::field::Fr;
 use crate::digest::Digest;
-use algebra::{BigInteger, FpParameters, PrimeField, ProjectiveCurve};
-use ff_fft::{DenseOrSparsePolynomial, DensePolynomial};
+use ark_ec::ProjectiveCurve;
+use ark_ff::{BigInteger, FpParameters, PrimeField, Zero};
+use ark_poly::{
+    univariate::{DenseOrSparsePolynomial, DensePolynomial},
+    UVPolynomial,
+};
 use itertools::unfold;
 
-pub fn digest_to_fr(input: &Digest) -> Fr {
+pub fn try_digest_to_prime_field<F: PrimeField>(input: Digest) -> Option<F> {
     let mut data = input.0;
     // drop the last two bits to ensure it is less than the modular
     *data.last_mut().unwrap() &= 0x3f;
-    let mut num = Fr::from_random_bytes(&data).unwrap().into_repr();
-    // ensure the Fr is at most in 248 bits. so PUB_Q - Fr and Fr + PUB_Q - Fr never overflow.
-    num.0[3] &= 0x00ff_ffff_ffff_ffff;
-    Fr::from_repr(num)
+    let mut num = F::from_random_bytes(&data)?.into_repr();
+    // ensure the result is at most in 248 bits. so PUB_Q - Fr and Fr + PUB_Q - Fr never overflow.
+    for v in num.as_mut().iter_mut().skip(3) {
+        *v = 0;
+    }
+    num.as_mut()[3] &= 0x00ff_ffff_ffff_ffff;
+    F::from_repr(num)
+}
+
+pub fn digest_to_prime_field<F: PrimeField>(input: Digest) -> F {
+    try_digest_to_prime_field(input).expect("failed to convert digest to prime field")
 }
 
 /// Return (g, x, y) s.t. a*x + b*y = g = gcd(a, b)
-pub fn xgcd<F: PrimeField>(
-    mut a: DensePolynomial<F>,
-    mut b: DensePolynomial<F>,
+pub fn xgcd<'a, F: PrimeField>(
+    a: impl Into<DenseOrSparsePolynomial<'a, F>>,
+    b: impl Into<DenseOrSparsePolynomial<'a, F>>,
 ) -> Option<(DensePolynomial<F>, DensePolynomial<F>, DensePolynomial<F>)> {
+    let mut a = a.into();
+    let mut b = b.into();
     let mut x0 = DensePolynomial::<F>::zero();
     let mut x1 = DensePolynomial::<F>::from_coefficients_vec(vec![F::one()]);
     let mut y0 = DensePolynomial::<F>::from_coefficients_vec(vec![F::one()]);
     let mut y1 = DensePolynomial::<F>::zero();
     while !a.is_zero() {
-        let a_poly: DenseOrSparsePolynomial<F> = a.clone().into();
-        let b_poly: DenseOrSparsePolynomial<F> = b.clone().into();
-        let (q, r) = b_poly.divide_with_q_and_r(&a_poly)?;
-        b = a;
-        a = r;
-        let y1old = y1.clone();
-        y1 = &y0 - &(&q * &y1);
+        let (q, r) = b.divide_with_q_and_r(&a)?;
+        b = a.into();
+        a = r.into();
+        let y1old = y1;
+        y1 = &y0 - &(&q * &y1old);
         y0 = y1old;
-        let x1old = x1.clone();
-        x1 = &x0 - &(&q * &x1);
+        let x1old = x1;
+        x1 = &x0 - &(&q * &x1old);
         x0 = x1old;
     }
-    Some((b, x0, y0))
+    Some((b.into(), x0, y0))
 }
 
 // Ref: https://github.com/blynn/pbc/blob/fbf4589036ce4f662e2d06905862c9e816cf9d08/arith/field.c#L251-L330
-
 pub struct FixedBaseCurvePow<G: ProjectiveCurve> {
     table: Vec<Vec<G>>,
 }
@@ -159,39 +168,38 @@ impl<F: PrimeField> FixedBaseScalarPow<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::acc::curve::{G1Projective as G1, G2Projective as G2};
-    use algebra::Field;
+    use ark_bls12_381::{Fr, G1Projective, G2Projective};
+    use ark_ff::Field;
+    use ark_poly::Polynomial;
     use rand::Rng;
+    use std::ops::MulAssign;
 
     #[test]
     fn test_xgcd() {
         let poly1 = DensePolynomial::from_coefficients_vec(vec![Fr::from(1u32), Fr::from(1u32)]);
         let poly2 = DensePolynomial::from_coefficients_vec(vec![Fr::from(2u32), Fr::from(1u32)]);
-        let (g, x, y) = xgcd(poly1.clone(), poly2.clone()).unwrap();
+        let (g, x, y) = xgcd(&poly1, &poly2).unwrap();
         assert_eq!(g.degree(), 0);
-        let mut gcd = &(&poly1 * &x) + &(&poly2 * &y);
-        while gcd.coeffs.last().map_or(false, |c| c.is_zero()) {
-            gcd.coeffs.pop();
-        }
+        let gcd = &(&poly1 * &x) + &(&poly2 * &y);
         assert_eq!(gcd, g);
     }
 
     #[test]
     fn test_pow_g1() {
-        let g1p = FixedBaseCurvePow::build(&G1::prime_subgroup_generator());
+        let g1p = FixedBaseCurvePow::build(&G1Projective::prime_subgroup_generator());
         let mut rng = rand::thread_rng();
         let num: Fr = rng.gen();
-        let mut expect = G1::prime_subgroup_generator();
+        let mut expect = G1Projective::prime_subgroup_generator();
         expect.mul_assign(num);
         assert_eq!(g1p.apply(&num), expect);
     }
 
     #[test]
     fn test_pow_g2() {
-        let g2p = FixedBaseCurvePow::build(&G2::prime_subgroup_generator());
+        let g2p = FixedBaseCurvePow::build(&G2Projective::prime_subgroup_generator());
         let mut rng = rand::thread_rng();
         let num: Fr = rng.gen();
-        let mut expect = G2::prime_subgroup_generator();
+        let mut expect = G2Projective::prime_subgroup_generator();
         expect.mul_assign(num);
         assert_eq!(g2p.apply(&num), expect);
     }

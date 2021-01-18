@@ -1,9 +1,10 @@
-use algebra::{msm::VariableBaseMSM, AffineCurve, PrimeField, ProjectiveCurve, UniformRand};
+use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
+use ark_ff::{Field, One, PrimeField, ToBytes, Zero};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::SeedableRng;
 use rayon::prelude::*;
 use vchain::acc::utils::*;
-use vchain::acc::{curve::G1Projective as G1, field::Fr};
+use vchain::acc::{Fr, G1Projective as G1};
 
 fn naive<G: AffineCurve>(
     bases: &[G],
