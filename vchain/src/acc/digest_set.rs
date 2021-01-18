@@ -19,7 +19,7 @@ impl<F: PrimeField> DigestSet<F> {
             .map(|i| {
                 let (k, v) = input.iter().nth(i).unwrap();
                 let d = k.to_digest();
-                (digest_to_prime_field(d), *v)
+                (digest_to_prime_field(&d), *v)
             })
             .collect_into_vec(&mut inner);
         Self { inner }

@@ -7,20 +7,17 @@ use ark_poly::{
 };
 use itertools::unfold;
 
-pub fn try_digest_to_prime_field<F: PrimeField>(input: Digest) -> Option<F> {
-    let mut data = input.0;
-    // drop the last two bits to ensure it is less than the modular
-    *data.last_mut().unwrap() &= 0x3f;
-    let mut num = F::from_random_bytes(&data)?.into_repr();
+pub fn try_digest_to_prime_field<F: PrimeField>(input: &Digest) -> Option<F> {
+    let mut num = F::from_be_bytes_mod_order(&input.0).into_repr();
     // ensure the result is at most in 248 bits. so PUB_Q - Fr and Fr + PUB_Q - Fr never overflow.
     for v in num.as_mut().iter_mut().skip(3) {
         *v = 0;
     }
-    num.as_mut()[3] &= 0x00ff_ffff_ffff_ffff;
+    num.as_mut().get_mut(3).map(|v| *v &= 0x00ff_ffff_ffff_ffff);
     F::from_repr(num)
 }
 
-pub fn digest_to_prime_field<F: PrimeField>(input: Digest) -> F {
+pub fn digest_to_prime_field<F: PrimeField>(input: &Digest) -> F {
     try_digest_to_prime_field(input).expect("failed to convert digest to prime field")
 }
 
