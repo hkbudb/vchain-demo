@@ -1,5 +1,5 @@
-use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
-use ark_ff::{Field, One, PrimeField, ToBytes, Zero};
+use ark_ec::{msm::VariableBaseMSM, AffineCurve, ProjectiveCurve};
+use ark_ff::{PrimeField, UniformRand, Zero};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::SeedableRng;
 use rayon::prelude::*;
@@ -25,7 +25,10 @@ fn fixed_base_pow<G: ProjectiveCurve>(
     let mut acc = G::zero();
 
     for (base, scalar) in bases.iter().zip(scalars.iter()) {
-        acc += &base.apply(&<G::ScalarField as PrimeField>::from_repr(*scalar));
+        acc += &base.apply(
+            &<G::ScalarField as PrimeField>::from_repr(*scalar)
+                .expect("failed to convert to prime field"),
+        );
     }
     acc
 }

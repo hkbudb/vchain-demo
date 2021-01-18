@@ -171,8 +171,8 @@ mod tests {
     use ark_bls12_381::{Fr, G1Projective, G2Projective};
     use ark_ff::Field;
     use ark_poly::Polynomial;
+    use core::ops::MulAssign;
     use rand::Rng;
-    use std::ops::MulAssign;
 
     #[test]
     fn test_xgcd() {

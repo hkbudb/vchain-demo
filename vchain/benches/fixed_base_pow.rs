@@ -1,5 +1,6 @@
-use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
-use ark_ff::{Field, One, PrimeField, ToBytes, Zero};
+use ark_ec::ProjectiveCurve;
+use ark_ff::{Field, PrimeField};
+use core::ops::MulAssign;
 use core::str::FromStr;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use vchain::acc::utils::*;
