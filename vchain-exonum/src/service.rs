@@ -12,7 +12,7 @@ use exonum::{
     },
 };
 use exonum_merkledb::{BinaryValue, Snapshot};
-use vchain::{Digest, Digestable, IdType, ReadInterface, WriteInterface};
+use vchain::{Digest, Digestible, IdType, ReadInterface, WriteInterface};
 
 #[exonum_interface]
 pub trait VChainInterface {

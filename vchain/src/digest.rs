@@ -112,23 +112,23 @@ pub fn blake2() -> blake2b_simd::Params {
     params
 }
 
-pub trait Digestable {
+pub trait Digestible {
     fn to_digest(&self) -> Digest;
 }
 
-impl Digestable for [u8] {
+impl Digestible for [u8] {
     fn to_digest(&self) -> Digest {
         Digest::from(blake2().hash(self))
     }
 }
 
-impl Digestable for str {
+impl Digestible for str {
     fn to_digest(&self) -> Digest {
         self.as_bytes().to_digest()
     }
 }
 
-impl Digestable for String {
+impl Digestible for String {
     fn to_digest(&self) -> Digest {
         self.as_bytes().to_digest()
     }
@@ -136,7 +136,7 @@ impl Digestable for String {
 
 macro_rules! impl_digestable_for_numeric {
     ($x: ty) => {
-        impl Digestable for $x {
+        impl Digestible for $x {
             fn to_digest(&self) -> Digest {
                 self.to_le_bytes().to_digest()
             }

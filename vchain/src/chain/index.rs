@@ -1,6 +1,6 @@
 use super::{IdType, SetElementType, SkipLstLvlType};
 use crate::acc::curve::G1Affine;
-use crate::digest::{blake2, concat_digest_ref, Digest, Digestable};
+use crate::digest::{blake2, concat_digest_ref, Digest, Digestible};
 use crate::set::MultiSet;
 use core::sync::atomic::{AtomicU64, Ordering};
 use serde::{Deserialize, Serialize};
@@ -74,7 +74,7 @@ impl IntraIndexNonLeaf {
     }
 }
 
-impl Digestable for IntraIndexNonLeaf {
+impl Digestible for IntraIndexNonLeaf {
     fn to_digest(&self) -> Digest {
         concat_digest_ref([self.acc_value.to_digest(), self.child_hash_digest].iter())
     }
@@ -111,7 +111,7 @@ impl IntraIndexLeaf {
     }
 }
 
-impl Digestable for IntraIndexLeaf {
+impl Digestible for IntraIndexLeaf {
     fn to_digest(&self) -> Digest {
         concat_digest_ref([self.acc_value.to_digest(), self.obj_hash].iter())
     }
@@ -177,7 +177,7 @@ pub struct BlockHeader {
     pub skip_list_root: Option<Digest>,
 }
 
-impl Digestable for BlockHeader {
+impl Digestible for BlockHeader {
     fn to_digest(&self) -> Digest {
         let mut state = blake2().to_state();
         state.update(&self.block_id.to_le_bytes());

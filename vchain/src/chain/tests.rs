@@ -1,6 +1,6 @@
 use super::*;
 use crate::acc;
-use crate::digest::{Digest, Digestable};
+use crate::digest::{Digest, Digestible};
 use anyhow::Context;
 use serde_json::json;
 use std::collections::HashMap;

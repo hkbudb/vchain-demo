@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use vchain::acc;
 use vchain::chain::*;
-use vchain::{Digest, Digestable};
+use vchain::{Digest, Digestible};
 use vchain_simchain::SimChain;
 
 fn parse_acc(input: &str) -> Result<acc::Type> {

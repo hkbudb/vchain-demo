@@ -1,4 +1,4 @@
-use crate::digest::Digestable;
+use crate::digest::Digestible;
 use core::iter::FromIterator;
 use core::ops::{Add, BitAnd, BitOr, Deref};
 use serde::{
@@ -8,9 +8,9 @@ use serde::{
 };
 use std::collections::HashMap;
 
-pub trait SetElement: Digestable + Clone + Send + Sync + Eq + PartialEq + core::hash::Hash {}
+pub trait SetElement: Digestible + Clone + Send + Sync + Eq + PartialEq + core::hash::Hash {}
 impl<T> SetElement for T where
-    T: Digestable + Clone + Send + Sync + Eq + PartialEq + core::hash::Hash
+    T: Digestible + Clone + Send + Sync + Eq + PartialEq + core::hash::Hash
 {
 }
 

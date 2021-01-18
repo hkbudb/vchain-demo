@@ -8,7 +8,7 @@ pub mod utils;
 
 pub use digest_set::DigestSet;
 
-use crate::digest::{Digest, Digestable};
+use crate::digest::{Digest, Digestible};
 use crate::set::{MultiSet, SetElement};
 use algebra::{
     bytes::ToBytes, msm::VariableBaseMSM, AffineCurve, Field, PairingCurve, PairingEngine,
@@ -380,7 +380,7 @@ pub enum Proof {
     ACC2(Box<Acc2Proof>),
 }
 
-impl Digestable for G1Affine {
+impl Digestible for G1Affine {
     fn to_digest(&self) -> Digest {
         let mut buf = Vec::<u8>::new();
         self.write(&mut buf)

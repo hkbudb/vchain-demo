@@ -1,6 +1,6 @@
 use super::{multiset_to_g1, IdType, Parameter};
 use crate::acc::curve::G1Affine;
-use crate::digest::{blake2, Digest, Digestable};
+use crate::digest::{blake2, Digest, Digestible};
 use crate::set::MultiSet;
 use core::sync::atomic::{AtomicU64, Ordering};
 use rayon::prelude::*;
@@ -49,7 +49,7 @@ impl Object {
     }
 }
 
-impl Digestable for Object {
+impl Digestible for Object {
     fn to_digest(&self) -> Digest {
         let mut state = blake2().to_state();
         state.update(&self.id.to_le_bytes());
@@ -73,7 +73,7 @@ pub enum SetElementType {
     W(String),
 }
 
-impl Digestable for SetElementType {
+impl Digestible for SetElementType {
     fn to_digest(&self) -> Digest {
         match self {
             SetElementType::V { dim, val, mask } => {
