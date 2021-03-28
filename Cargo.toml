@@ -4,16 +4,3 @@ members = [
   "vchain-exonum",
   "vchain-simchain",
 ]
-exclude = [
-  "vendor",
-]
-
-[patch.'https://github.com/arkworks-rs/algebra']
-ark-ec = { path = "./vendor/algebra/ec" }
-ark-ff = { path = "./vendor/algebra/ff" }
-ark-ff-asm = { path = "./vendor/algebra/ff-asm" }
-ark-ff-macros = { path = "./vendor/algebra/ff-macros" }
-ark-serialize = { path = "./vendor/algebra/serialize" }
-
-[patch.'https://github.com/arkworks-rs/utils']
-ark-std = { path = "./vendor/utils/std" }

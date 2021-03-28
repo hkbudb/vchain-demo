@@ -1,9 +1,0 @@
-[submodule "vendor/algebra"]
-	path = vendor/algebra
-	url = https://github.com/arkworks-rs/algebra
-[submodule "vendor/curves"]
-	path = vendor/curves
-	url = https://github.com/arkworks-rs/curves
-[submodule "vendor/utils"]
-	path = vendor/utils
-	url = https://github.com/arkworks-rs/utils
