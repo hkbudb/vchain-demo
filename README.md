@@ -1,5 +1,35 @@
 # vChain Demo
 
+**WARNING**: This is an academic proof-of-concept prototype, and in particular has not received careful code review. This implementation is NOT ready for production use.
+
+If you find the code here useful, please consider to cite the following papers:
+
+```bibtex
+@inproceedings{SIGMOD19:vchain,
+  author = {Xu, Cheng and Zhang, Ce and Xu, Jianliang},
+  title = {{vChain}: Enabling Verifiable Boolean Range Queries over Blockchain Databases},
+  booktitle = {Proceedings of the 2019 ACM SIGMOD International Conference on Management of Data},
+  year = {2019},
+  month = jun,
+  address = {Amsterdam, Netherlands},
+  pages = {141--158},
+  isbn = {978-1-4503-5643-5},
+  doi = {10.1145/3299869.3300083}
+}
+
+@inproceedings{SIGMOD20:vchain-demo,
+  author = {Wang, Haixin and Xu, Cheng and Zhang, Ce and Xu, Jianliang},
+  title = {{vChain}: A Blockchain System Ensuring Query Integrity},
+  booktitle = {Proceedings of the 2020 ACM SIGMOD International Conference on Management of Data},
+  year = {2020},
+  month = jun,
+  address = {Portland, OR, USA},
+  pages = {2693--2696},
+  isbn = {978-1-4503-6735-6},
+  doi = {10.1145/3318464.3384682}
+}
+```
+
 ## Build
 
 * Install Rust from <https://rustup.rs>.
