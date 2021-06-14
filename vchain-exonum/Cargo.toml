@@ -21,9 +21,10 @@ exonum-merkledb = "0.13.0-rc.2"
 exonum-proto = "0.13.0-rc.2"
 failure = "0.1"
 futures = "0.3"
+lazy_static = "1.4"
 log = "0.4"
 lru = "0.6"
-lazy_static = "1.4"
+os_info = "=1.0.1" # Fix `version_regex` does not live long enough
 protobuf = "2.19"
 reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
